@@ -1,0 +1,38 @@
+# Core API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# LLM and Embeddings
+requests==2.31.0
+sentence-transformers==2.2.2
+torch==2.9.1
+transformers==4.35.0
+
+# Vector Database
+pymilvus==2.3.3
+
+# Speech Processing
+openai-whisper==20231117
+soundfile==0.12.1
+librosa==0.10.1
+
+# TTS
+coqui-tts
+pydub==0.25.1
+
+# Utilities
+pyyaml==6.0.1
+python-dotenv==1.0.0
+aiofiles==23.2.1
+
+# Database
+aiosqlite==0.19.0
+
+# Logging
+loguru==0.7.2
+
+# Windows-specific
+pywin32==306
+colorama==0.4.6

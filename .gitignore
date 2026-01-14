@@ -1,0 +1,129 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Machine Learning Models
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pb
+*.onnx
+*.safetensors
+models/
+checkpoints/
+weights/
+
+# Ollama/vLLM
+ollama/
+.ollama/
+vllm_cache/
+
+# Whisper Models
+whisper_models/
+*.whisper
+
+# VITS Models
+vits_models/
+*.vits
+
+# Typhoon LLM
+typhoon_models/
+
+# Milvus
+milvus_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# PostgreSQL
+*.dump
+*.sql.gz
+pgdata/
+
+# FastAPI/MCP Server
+.env
+.env.local
+.env.*.local
+*.pid
+
+# Logs
+logs/
+*.log
+log/
+
+# Data files
+data/
+datasets/
+*.csv
+*.json.bak
+*.pkl
+*.pickle
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Audio/Video (optional - uncomment if you don't want to track media files)
+# *.wav
+# *.mp3
+# *.mp4
+# *.avi
+
+# ROS2 (if any ROS2 files accidentally end up here)
+install/
+log/
+build/
+
+# Face recognition data
+face_data/
+face_encodings/
+*.npy

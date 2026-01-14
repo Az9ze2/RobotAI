@@ -1,0 +1,60 @@
+# PC AI Brain Configuration
+
+# API Settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+
+# LLM Settings
+llm:
+  provider: "ollama"
+  model: "scb10x/typhoon2.1-gemma3-4b:latest"
+  api_url: "http://localhost:11434"
+  max_tokens: 512
+  temperature: 0.7
+
+# Embedding Model
+embedding:
+  model_name: "BAAI/bge-m3"
+  dimension: 1024
+  device: "cuda"  # or "cpu"
+
+# Milvus Vector DB
+milvus:
+  host: "localhost"
+  port: 19530
+  collection_name: "robot_memory"
+
+# Speech-to-Text
+stt:
+  model: "small"  # whisper model size
+  language: "th"
+  confidence_threshold: 0.7
+
+# Text-to-Speech
+tts:
+  model_path: "./models/tts_checkpoint"
+  sample_rate: 22050
+  cache_enabled: true
+
+# Database
+database:
+  path: "./database/metadata.db"
+
+# Session Management
+session:
+  timeout_seconds: 1800  # 30 minutes
+  max_history: 10
+
+# Memory Settings
+memory:
+  diary_summary_length: 200
+  retrieval_top_k: 5
+  similarity_threshold: 0.75
+
+# Logging
+logging:
+  level: "INFO"
+  file: "./logs/ai_brain.log"
+  rotation: "500 MB"
