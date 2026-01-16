@@ -265,19 +265,29 @@ def demo_tts_only():
     """Test TTS only"""
     print("\n=== TTS Only Demo ===")
     
-    tts = VachanaTTS()
+    # Use male voice model
+    tts = VachanaTTS(default_model="MMS-TTS-THAI-MALEV1")
     
-    text = "สวัสดีครับ ยินดีต้อนรับสู่ระบบหุ่นยนต์บริการ"
+    # Create output directory
+    output_dir = Path("C:/Users/Win 10 Pro/Desktop/VachanaTTS/test_outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    text = "สวัสดีครับ ยินดีต้อนรับสู่สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง"
     print(f"Synthesizing: {text}")
     
-    audio_file, metadata = tts.synthesize(text)
+    # Save to test_outputs directory
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = str(output_dir / f"demo_tts_{timestamp}.wav")
+    
+    audio_file, metadata = tts.synthesize(text, output_path=output_file)
     print(f"Audio generated: {audio_file}")
     print(f"Duration: {metadata['duration']:.2f}s")
     
     print("Playing...")
     play_audio_file(audio_file)
     
-    Path(audio_file).unlink()
+    print(f"\n✅ Output saved to: {audio_file}")
 
 
 if __name__ == "__main__":
