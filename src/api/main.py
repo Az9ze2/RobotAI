@@ -3,26 +3,32 @@ FastAPI Main Application
 Central API server for PC AI Brain
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict
+import tempfile
+import shutil
 import yaml
 from pathlib import Path
 from loguru import logger
 import sys
+import time
 
 # Import custom modules
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from vector_db.milvus_client import MilvusClient
 from llm.typhoon_client import TyphoonClient
 from mcp.context_builder import ContextBuilder
+from stt.whisper_client import WhisperSTT
+from tts.vachana_client import VachanaTTS
 
 # Configure logging
 logger.add("logs/api.log", rotation="500 MB", level="INFO")
 
 # Load configuration
-config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
+config_path = Path(__file__).parent.parent.parent / "config" / "settings.yaml"
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f)
 
@@ -45,6 +51,8 @@ app.add_middleware(
 # Initialize components
 milvus_client = None
 typhoon_client = None
+whisper_stt = None
+vachana_tts = None
 context_builder = ContextBuilder()
 
 
@@ -88,7 +96,7 @@ class MemorySearch(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global milvus_client, typhoon_client
+    global milvus_client, typhoon_client, whisper_stt, vachana_tts
     
     try:
         # Initialize Milvus
@@ -106,6 +114,25 @@ async def startup_event():
             model=config["llm"]["model"]
         )
         logger.info("Typhoon LLM client initialized")
+        
+        # Initialize Whisper STT
+        try:
+            whisper_stt = WhisperSTT(
+                model_size=config["stt"].get("model", "small"),
+                language=config["stt"].get("language", "th")
+            )
+            logger.info("Whisper STT initialized")
+        except Exception as e:
+            logger.warning(f"Whisper STT init failed: {e}")
+            whisper_stt = None
+        
+        # Initialize VachanaTTS
+        try:
+            vachana_tts = VachanaTTS()
+            logger.info("VachanaTTS initialized")
+        except Exception as e:
+            logger.warning(f"VachanaTTS init failed: {e}")
+            vachana_tts = None
         
         logger.success("All services started successfully")
         
@@ -320,6 +347,142 @@ async def clear_session(session_id: str):
     """Clear session context"""
     context_builder.clear_session(session_id)
     return {"status": "success", "message": f"Session {session_id} cleared"}
+
+
+# Audio processing endpoints
+@app.post("/audio/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    """
+    Transcribe audio file to text using Whisper STT
+    
+    Upload audio file and get Thai text transcription with confidence score
+    """
+    if not whisper_stt:
+        raise HTTPException(status_code=503, detail="STT service not available")
+    
+    try:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(audio.filename).suffix) as tmp_file:
+            shutil.copyfileobj(audio.file, tmp_file)
+            tmp_path = tmp_file.name
+        
+        # Transcribe
+        result = whisper_stt.transcribe_audio(tmp_path)
+        
+        # Clean up
+        Path(tmp_path).unlink(missing_ok=True)
+        
+        return {
+            "status": "success",
+            "text": result["text"],
+            "confidence": result["confidence"],
+            "language": result["language"],
+            "duration": result["duration"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/audio/synthesize")
+async def synthesize_speech(text: str, model_name: Optional[str] = None):
+    """
+    Synthesize Thai text to speech using VachanaTTS
+    
+    Returns audio file that can be played or downloaded
+    """
+    if not vachana_tts:
+        raise HTTPException(status_code=503, detail="TTS service not available")
+    
+    try:
+        # Synthesize speech
+        audio_file, metadata = vachana_tts.synthesize(text, model_name)
+        
+        # Return audio file
+        return FileResponse(
+            audio_file,
+            media_type="audio/wav",
+            filename=f"speech_{int(time.time())}.wav",
+            headers={
+                "X-Text": text[:100],
+                "X-Duration": str(metadata["duration"])
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Speech synthesis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/voice/interact")
+async def voice_interact(audio: UploadFile = File(...), session_id: str = "default"):
+    """
+    Complete voice interaction: STT → Conversation → TTS
+    
+    Upload audio, get AI response as audio
+    """
+    if not whisper_stt or not vachana_tts:
+        raise HTTPException(status_code=503, detail="Voice services not available")
+    
+    try:
+        # Step 1: Transcribe audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(audio.filename).suffix) as tmp_file:
+            shutil.copyfileobj(audio.file, tmp_file)
+            tmp_path = tmp_file.name
+        
+        stt_result = whisper_stt.transcribe_audio(tmp_path)
+        Path(tmp_path).unlink(missing_ok=True)
+        
+        user_text = stt_result["text"]
+        confidence = stt_result["confidence"]
+        
+        # Step 2: Process through conversation API
+        speech_input = SpeechInput(
+            session_id=session_id,
+            text=user_text,
+            confidence=confidence
+        )
+        
+        chat_response = await process_speech(speech_input)
+        response_text = chat_response.response_text
+        
+        # Step 3: Synthesize response
+        audio_file, metadata = vachana_tts.synthesize(response_text)
+        
+        # Return audio response with metadata
+        return FileResponse(
+            audio_file,
+            media_type="audio/wav",
+            headers={
+                "X-User-Text": user_text,
+                "X-Confidence": str(confidence),
+                "X-Response-Text": response_text,
+                "X-Intent": chat_response.intent,
+                "X-Should-Navigate": str(chat_response.should_navigate)
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Voice interaction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/audio/models")
+async def get_audio_models():
+    """Get available STT and TTS models"""
+    models_info = {
+        "stt": None,
+        "tts": None
+    }
+    
+    if whisper_stt:
+        models_info["stt"] = whisper_stt.get_model_info()
+    
+    if vachana_tts:
+        models_info["tts"] = vachana_tts.get_model_info()
+    
+    return models_info
 
 
 if __name__ == "__main__":
