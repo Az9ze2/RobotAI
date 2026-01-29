@@ -130,3 +130,6 @@ build/
 face_data/
 face_encodings/
 *.npy
+
+# Design files
+design/
