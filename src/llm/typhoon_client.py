@@ -11,7 +11,7 @@ from loguru import logger
 
 class TyphoonClient:
     def __init__(self, api_url: str = "http://localhost:11434", 
-                 model: str = "typhoon:7b-instruct"):
+                 model: str = "scb10x/typhoon2.1-gemma3-4b:latest"):
         """
         Initialize Typhoon LLM client
         
@@ -43,7 +43,7 @@ class TyphoonClient:
         except Exception as e:
             logger.error(f"Ollama connection error: {e}")
     
-    def generate(self, prompt: str, temperature: float = 0.7, 
+    def generate(self, prompt: str, temperature: float = 0.5, 
                 max_tokens: int = 512, stream: bool = False) -> Optional[str]:
         """
         Generate response from prompt

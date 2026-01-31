@@ -9,7 +9,7 @@ api:
 # LLM Settings
 llm:
   provider: "ollama"
-  model: "scb10x/typhoon2.1-gemma3-4b:latest"
+  model: "scb10x/typhoon2.1-gemma3-12b:latest"
   api_url: "http://localhost:11434"
   max_tokens: 512
   temperature: 0.7
@@ -28,9 +28,20 @@ milvus:
 
 # Speech-to-Text
 stt:
-  model: "small"  # whisper model size
+  model: "medium"  # whisper model size
   language: "th"
   confidence_threshold: 0.7
+
+# Text Correction (Post-STT Processing)
+text_correction:
+  enabled: true
+  use_llm: true                # Use LLM for advanced corrections
+  use_dictionary: true         # Use dictionary for common errors
+  llm_temperature: 0.3         # Low temperature for conservative corrections
+  max_corrections: 5           # Maximum corrections per text
+  skip_if_confident: true      # Skip if STT confidence is high
+  confidence_threshold: 0.95   # Threshold for skipping correction
+
 
 # Text-to-Speech (VachanaTTS)
 tts:

@@ -86,9 +86,12 @@ class MCPAgent:
         """
         Mock LLM inference based on intent
         """
-        student_name = context["student_info"]["name"]
-        if student_name == "unknown":
-            student_name = "นักศึกษา"
+        student_id = context["student_info"]["id"]
+        # Use Thai-friendly name format (TTS can't pronounce English/numbers)
+        if student_id and student_id != "unknown":
+            student_name = "คุณ"  # Just use polite "you" instead of ID
+        else:
+            student_name = "คุณ"
             
         if intent == "navigation":
             # Extract basic goal from text using Thai keywords
@@ -109,13 +112,13 @@ class MCPAgent:
                 goal_name_thai = "ออฟฟิศ"
                 
             return {
-                "speech": f"ได้เลยครับคุณ {student_name} เดี๋ยวผมพาไปที่{goal_name_thai}นะครับ",
+                "speech": f"ได้เลยครับ เดี๋ยวผมพาไปที่{goal_name_thai}นะครับ",
                 "nav_goal": goal
             }
             
         elif intent == "conversation":
             return {
-                "speech": f"สวัสดีครับคุณ {student_name} มีอะไรให้ผมช่วยไหมครับ"
+                "speech": f"สวัสดีครับ มีอะไรให้ผมช่วยไหมครับ"
             }
             
         else:

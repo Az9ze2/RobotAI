@@ -19,7 +19,7 @@ class WhisperSTT:
     
     def __init__(
         self, 
-        model_size: str = "small",
+        model_size: str = "medium",
         device: str = "auto",
         language: str = "th"
     ):
