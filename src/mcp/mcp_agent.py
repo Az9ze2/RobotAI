@@ -73,55 +73,55 @@ class MCPAgent:
         llm_response = self._mock_llm_inference(llm_context, intent, text)
         
         # 6. Process Output / Update Context
-        self.context_builder.add_conversation_turn(session_id, "assistant", llm_response["speech"])
+        self.context_builder.add_conversation_turn(session_id, "assistant", llm_response.get("speech", ""))
         
         return {
-            "response_text": llm_response["speech"],
             "intent": intent,
-            "should_navigate": "nav_goal" in llm_response,
-            "navigation_goal": llm_response.get("nav_goal")
+            "should_navigate": llm_response.get("should_navigate", False),
+            "navigation_goal": llm_response.get("navigation_goal"),
+            "goal_name_thai": llm_response.get("goal_name_thai", "")
         }
 
     def _mock_llm_inference(self, context: Dict, intent: str, user_text: str) -> Dict:
         """
-        Mock LLM inference based on intent
+        Intent detection and goal extraction only
+        NO response generation - that's LLM's job
         """
-        student_id = context["student_info"]["id"]
-        # Use Thai-friendly name format (TTS can't pronounce English/numbers)
-        if student_id and student_id != "unknown":
-            student_name = "คุณ"  # Just use polite "you" instead of ID
-        else:
-            student_name = "คุณ"
-            
+        result = {
+            "intent": intent,
+            "should_navigate": False,
+            "navigation_goal": None
+        }
+        
         if intent == "navigation":
-            # Extract basic goal from text using Thai keywords
+            # Extract navigation goal from text
             goal = "unknown_location"
             goal_name_thai = "จุดหมาย"
             
-            # Lab/Laboratory
-            if any(word in user_text for word in ["แลป", "ห้องแลป", "ห้องปฏิบัติการ", "lab"]):
+            # Lab/Laboratory - check multiple variations
+            if any(word in user_text for word in ["แลป", "ห้องแลป", "ห้องปฏิบัติการ", "lab", "laboratory"]):
                 goal = "AI_LAB"
                 goal_name_thai = "ห้องแลป"
             # Classroom
-            elif any(word in user_text for word in ["ห้องเรียน", "ห้องเรียน", "classroom"]):
+            elif any(word in user_text for word in ["ห้องเรียน", "classroom"]):
                 goal = "CLASSROOM"
                 goal_name_thai = "ห้องเรียน"
             # Office
-            elif any(word in user_text for word in ["ออฟฟิศ", "สำนักงาน", "ห้องทำงาน", "office"]):
+            elif any(word in user_text for word in ["ออฟฟิศ", "ออฟฟิต", "สำนักงาน", "office"]):
                 goal = "OFFICE"
                 goal_name_thai = "ออฟฟิศ"
-                
-            return {
-                "speech": f"ได้เลยครับ เดี๋ยวผมพาไปที่{goal_name_thai}นะครับ",
-                "nav_goal": goal
-            }
+            # Library
+            elif any(word in user_text for word in ["ห้องสมุด", "หอสมุด", "library"]):
+                goal = "LIBRARY"
+                goal_name_thai = "ห้องสมุด"
+            # Canteen
+            elif any(word in user_text for word in ["โรงอาหาร", "โรงกิน", "canteen"]):
+                goal = "CANTEEN"
+                goal_name_thai = "โรงอาหาร"
             
-        elif intent == "conversation":
-            return {
-                "speech": f"สวัสดีครับ มีอะไรให้ผมช่วยไหมครับ"
-            }
-            
-        else:
-            return {
-                "speech": "รับทราบครับ"
-            }
+            result["should_navigate"] = True
+            result["navigation_goal"] = goal
+            result["goal_name_thai"] = goal_name_thai
+        
+        # NO response generation - LLM will handle that
+        return result

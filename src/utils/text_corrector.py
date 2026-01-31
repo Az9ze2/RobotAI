@@ -17,8 +17,10 @@ class ThaiTextCorrector:
     COMMON_CORRECTIONS = {
         # Lab/Laboratory variations
         "แหลก": "แลป",
+        "แหลบ": "แลป",  # Common STT error
         "แล็บ": "แลป",
         "แร็บ": "แลป",
+        "แรพ": "แลป",  # Common STT error
         
         # Polite particles (order matters - longer first)
         "นาย": "หน่อย",
@@ -29,6 +31,9 @@ class ThaiTextCorrector:
         "ห้องเลียน": "ห้องเรียน",
         "ห้องสมุท": "ห้องสมุด",
         "หอสมุท": "ห้องสมุด",
+        "ห้องรับ": "ห้องแลป",  # Common STT error for "lab"
+        "ห้องราบ": "ห้องแลป",
+        "ห้องลับ": "ห้องแลป",
         
         # Office variations
         "ออฟฟิต": "ออฟฟิศ",
@@ -157,6 +162,9 @@ class ThaiTextCorrector:
         
         for wrong, correct in self.COMMON_CORRECTIONS.items():
             if wrong in corrected:
+                # Find position before replacement
+                position = corrected.find(wrong)
+                
                 # Replace the word
                 new_text = corrected.replace(wrong, correct)
                 
@@ -165,7 +173,7 @@ class ThaiTextCorrector:
                         'type': 'dictionary',
                         'wrong': wrong,
                         'correct': correct,
-                        'position': corrected.find(wrong)
+                        'position': position
                     })
                     corrected = new_text
         
@@ -191,19 +199,25 @@ class ThaiTextCorrector:
         """
         try:
             # Build correction prompt
-            system_prompt = """คุณเป็นผู้ช่วยแก้ไขไวยากรณ์ภาษาไทย
-งาน: แก้ไขข้อความที่ได้จากระบบ Speech-to-Text ให้ถูกต้อง
+            system_prompt = """คุณเป็นผู้ช่วยแก้ไขข้อความจาก Speech-to-Text ภาษาไทย
 
-กฎสำคัญ:
-1. แก้ไขเฉพาะคำที่ผิด ห้ามเปลี่ยนความหมายหรือเจตนาของผู้พูด
-2. แก้คำที่เสียงคล้ายกัน (เช่น "แหลก" -> "แลป", "นาย" -> "หน่อย")
-3. ลบคำซ้ำซ้อนและคำอุดช่อง (เอ่อ, อืม)
-4. รักษาน้ำเสียงและความสุภาพเดิม
-5. ตอบเฉพาะข้อความที่แก้แล้ว ไม่ต้องอธิบาย ไม่ต้องใส่เครื่องหมายคำพูด"""
+กฎสำคัญ - ห้ามฝ่าฝืน:
+1. ห้ามเปลี่ยน "ครับ" เป็น "ค่ะ" หรือ "คะ" - ห้ามเปลี่ยนเพศผู้พูด
+2. ห้ามเปลี่ยน "ค่ะ" หรือ "คะ" เป็น "ครับ" - ห้ามเปลี่ยนเพศผู้พูด
+3. รักษาคำลงท้ายเดิมทุกคำ (ครับ/ค่ะ/คะ/นะ/จ้า)
+
+แก้ได้เฉพาะ:
+- คำที่ฟังผิด: "แหลก/แหลบ/แร็บ" → "แลป"
+- คำที่ฟังผิด: "นาย" → "หน่อย" (แต่ห้ามแก้ถ้าหมายถึงคำนำหน้าชื่อ)
+- สถานที่ผิด: "โรงกิน" → "โรงอาหาร", "ห้องสมุท" → "ห้องสมุด"
+- คำอุดช่อง: ลบ "เอ่อ", "อืม", "อ่า"
+
+ถ้าไม่แน่ใจ ห้ามแก้
+ตอบเฉพาะข้อความที่แก้แล้ว ไม่ต้องอธิบาย"""
             
-            user_prompt = f"""ข้อความต้นฉบับ: {text}
+            user_prompt = f"""ข้อความ: {text}
 
-ข้อความที่แก้แล้ว:"""
+แก้ไข (ห้ามเปลี่ยนครับ/ค่ะ):"""
             
             messages = [
                 {"role": "system", "content": system_prompt},

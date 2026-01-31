@@ -255,35 +255,43 @@ class FullIntegrationTest:
         if mcp_response.status_code == 200:
             mcp_result = mcp_response.json()
             intent = mcp_result['intent']
-            response_text = mcp_result['response_text']
             should_navigate = mcp_result.get('should_navigate', False)
             nav_goal = mcp_result.get('navigation_goal')
+            goal_name_thai = mcp_result.get('goal_name_thai', '')
             
             print(f"   🎯 Intent: {intent}")
-            print(f"   💬 Response: '{response_text}'")
             if should_navigate:
                 print(f"   🗺️  Navigation Goal: {nav_goal}")
+                if goal_name_thai:
+                    print(f"   📍 Goal (Thai): {goal_name_thai}")
             print(f"   ⏱️  MCP Time: {mcp_time:.2f}s")
-        else:
-            print(f"   ❌ MCP request failed: {mcp_response.status_code}")
-            return None
-        
-        # Step 3: LLM - Enhanced Response (Optional)
-        print("\n" + "-"*70)
-        print("3️⃣ LARGE LANGUAGE MODEL (LLM) - Optional Enhancement")
-        print("-"*70)
-        
-        if self.components_ready.get('llm', False):
-            print("   🔄 Generating enhanced response with Typhoon LLM...")
+            
+            # Step 3: LLM - Generate Response (ALWAYS, MCP doesn't generate responses anymore)
+            print("\n" + "-"*70)
+            print("3️⃣ LARGE LANGUAGE MODEL (LLM) - Response Generation")
+            print("-"*70)
+            print(f"   🔄 Generating response for intent: {intent}...")
+            
             start_llm = time.time()
             
-            # Build prompt for LLM
-            system_prompt = """คุณเป็นหุ่นยนต์ช่วยเหลือในมหาวิทยาลัย พูดภาษาไทยอย่างสุภาพและเป็นมิตร
-ตอบสั้นๆ กระชับ ไม่เกิน 2 ประโยค"""
+            # Build prompt for LLM based on intent
+            system_prompt = """คุณเป็นหุ่นยนต์ช่วยเหลือเพศชาย ในมหาวิทยาลัย
+ใช้ "ครับ" เท่านั้น ห้ามใช้ "ค่ะ" หรือ "คะ"
+พูดสั้นๆ กระชับ ไม่เกิน 1-2 ประโยค
+ตอบเฉพาะในขอบเขตที่ถูกถาม ไม่ต้องอธิบายเกินความจำเป็น
+ห้ามพูดเกินบทบาท"""
             
-            user_prompt = f"""ผู้ใช้พูดว่า: "{transcribed_text}"
-Intent ที่ตรวจพบ: {intent}
-กรุณาตอบกลับอย่างเหมาะสม"""
+            if intent == "navigation" and goal_name_thai:
+                user_prompt = f"""ผู้ใช้พูดว่า: "{corrected_text}"
+Intent: navigation
+จุดหมาย: {goal_name_thai}
+
+ตอบว่าจะพาไป เช่น "ได้เลยครับ เดี๋ยวผมพาไปห้อง{goal_name_thai}นะครับ" """
+            else:
+                user_prompt = f"""ผู้ใช้พูดว่า: "{corrected_text}"
+Intent: {intent}
+
+ตอบกลับสั้นๆ เหมาะสม ใช้ "ครับ" เท่านั้น"""
             
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -306,7 +314,8 @@ Intent ที่ตรวจพบ: {intent}
             else:
                 print("   ⚠️  LLM failed, using MCP response")
         else:
-            print("   ⚠️  LLM not available, using MCP response")
+            print(f"   ❌ MCP request failed: {mcp_response.status_code}")
+            return None
         
         # Step 4: TTS - Text to Speech
         print("\n" + "-"*70)
