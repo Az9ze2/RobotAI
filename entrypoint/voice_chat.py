@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from stt.whisper_client import WhisperSTT
+from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
 import sounddevice as sd
 import soundfile as sf
@@ -36,10 +36,11 @@ class SafeVoiceChatBot:
             self.config = yaml.safe_load(f)
         
         # Initialize STT
-        print("\n📥 Loading Whisper STT...")
-        self.stt = WhisperSTT(
-            model_size=self.config['stt']['model'],
-            language=self.config['stt']['language']
+        print("\n📥 Loading Typhoon ASR...")
+        self.stt = TyphoonASR(
+            model_name="scb10x/typhoon-asr-realtime",
+            language=self.config['stt']['language'],
+            device="auto"
         )
         print("✅ STT Ready")
         

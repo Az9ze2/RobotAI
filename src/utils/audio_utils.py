@@ -23,7 +23,7 @@ def record_audio(
     
     Args:
         duration: Recording duration in seconds
-        sample_rate: Sample rate (16000 for Whisper)
+        sample_rate: Sample rate (16000 for Typhoon ASR)
         channels: Number of audio channels (1 = mono)
         device: Input device index (None = default)
         

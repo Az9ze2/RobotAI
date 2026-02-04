@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from stt.whisper_client import WhisperSTT
+from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
 from llm.typhoon_client import TyphoonClient
 
@@ -19,9 +19,10 @@ class VoiceInferencePipeline:
     
     def __init__(self, config: dict):
         """Initialize all components"""
-        self.stt = WhisperSTT(
-            model_size=config['stt']['model'],
-            language=config['stt']['language']
+        self.stt = TyphoonASR(
+            model_name="scb10x/typhoon-asr-realtime",
+            language=config['stt']['language'],
+            device="auto"
         )
         self.tts = VachanaTTS()
         self.llm = TyphoonClient(

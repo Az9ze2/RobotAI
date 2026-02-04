@@ -1,6 +1,9 @@
 """
 Whisper STT Client
 Thai Language Speech-to-Text using OpenAI Whisper
+
+⚠️ DEPRECATED: This module is deprecated in favor of Typhoon ASR.
+Please use `stt.typhoon_asr_client.TyphoonASR` instead for better Thai language support.
 """
 
 import whisper

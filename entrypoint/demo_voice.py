@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from stt.whisper_client import WhisperSTT
+from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
 from utils.audio_utils import record_audio, play_audio_file, save_audio
 import requests
@@ -39,7 +39,11 @@ class VoiceBot:
         
         # Initialize STT and TTS
         try:
-            self.stt = WhisperSTT(model_size="small", language="th")
+            self.stt = TyphoonASR(
+                model_name="scb10x/typhoon-asr-realtime",
+                language="th",
+                device="auto"
+            )
             logger.success("STT initialized")
         except Exception as e:
             logger.error(f"STT initialization failed: {e}")
@@ -244,7 +248,11 @@ def demo_stt_only():
     """Test STT only"""
     print("\n=== STT Only Demo ===")
     
-    stt = WhisperSTT()
+    stt = TyphoonASR(
+        model_name="scb10x/typhoon-asr-realtime",
+        language="th",
+        device="auto"
+    )
     
     print("Recording 5 seconds...")
     audio_data, sample_rate = record_audio(duration=5.0)

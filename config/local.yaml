@@ -28,8 +28,20 @@ milvus:
 
 # Speech-to-Text
 stt:
-  model: "medium"  # whisper model size
-  language: "th"
+  provider: "typhoon"  # Options: "whisper", "typhoon"
+  
+  # Typhoon ASR Settings (when provider = "typhoon")
+  typhoon:
+    model: "scb10x/typhoon-asr-realtime"
+    device: "auto"  # Options: "auto", "cpu", "cuda"
+    language: "th"
+  
+  # Whisper Settings (when provider = "whisper")
+  whisper:
+    model: "medium"  # whisper model size
+    language: "th"
+  
+  # Common settings
   confidence_threshold: 0.7
 
 # Text Correction (Post-STT Processing)

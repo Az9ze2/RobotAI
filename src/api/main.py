@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from vector_db.milvus_client import MilvusClient
 from llm.typhoon_client import TyphoonClient
 from mcp.context_builder import ContextBuilder
-from stt.whisper_client import WhisperSTT
+from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
 
 # Configure logging
@@ -51,7 +51,7 @@ app.add_middleware(
 # Initialize components
 milvus_client = None
 typhoon_client = None
-whisper_stt = None
+typhoon_stt = None
 vachana_tts = None
 context_builder = ContextBuilder()
 
@@ -96,7 +96,7 @@ class MemorySearch(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global milvus_client, typhoon_client, whisper_stt, vachana_tts
+    global milvus_client, typhoon_client, typhoon_stt, vachana_tts
     
     try:
         # Initialize Milvus
@@ -115,16 +115,17 @@ async def startup_event():
         )
         logger.info("Typhoon LLM client initialized")
         
-        # Initialize Whisper STT
+        # Initialize Typhoon ASR
         try:
-            whisper_stt = WhisperSTT(
-                model_size=config["stt"].get("model", "small"),
-                language=config["stt"].get("language", "th")
+            typhoon_stt = TyphoonASR(
+                model_name="scb10x/typhoon-asr-realtime",
+                language=config["stt"].get("language", "th"),
+                device="auto"
             )
-            logger.info("Whisper STT initialized")
+            logger.info("Typhoon ASR initialized")
         except Exception as e:
-            logger.warning(f"Whisper STT init failed: {e}")
-            whisper_stt = None
+            logger.warning(f"Typhoon ASR init failed: {e}")
+            typhoon_stt = None
         
         # Initialize VachanaTTS
         try:
@@ -353,11 +354,11 @@ async def clear_session(session_id: str):
 @app.post("/audio/transcribe")
 async def transcribe_audio(audio: UploadFile = File(...)):
     """
-    Transcribe audio file to text using Whisper STT
+    Transcribe audio file to text using Typhoon ASR
     
     Upload audio file and get Thai text transcription with confidence score
     """
-    if not whisper_stt:
+    if not typhoon_stt:
         raise HTTPException(status_code=503, detail="STT service not available")
     
     try:
@@ -367,7 +368,7 @@ async def transcribe_audio(audio: UploadFile = File(...)):
             tmp_path = tmp_file.name
         
         # Transcribe
-        result = whisper_stt.transcribe_audio(tmp_path)
+        result = typhoon_stt.transcribe_audio(tmp_path)
         
         # Clean up
         Path(tmp_path).unlink(missing_ok=True)
@@ -376,8 +377,7 @@ async def transcribe_audio(audio: UploadFile = File(...)):
             "status": "success",
             "text": result["text"],
             "confidence": result["confidence"],
-            "language": result["language"],
-            "duration": result["duration"]
+            "language": result["language"]
         }
         
     except Exception as e:
@@ -422,7 +422,7 @@ async def voice_interact(audio: UploadFile = File(...), session_id: str = "defau
     
     Upload audio, get AI response as audio
     """
-    if not whisper_stt or not vachana_tts:
+    if not typhoon_stt or not vachana_tts:
         raise HTTPException(status_code=503, detail="Voice services not available")
     
     try:
@@ -431,7 +431,7 @@ async def voice_interact(audio: UploadFile = File(...), session_id: str = "defau
             shutil.copyfileobj(audio.file, tmp_file)
             tmp_path = tmp_file.name
         
-        stt_result = whisper_stt.transcribe_audio(tmp_path)
+        stt_result = typhoon_stt.transcribe_audio(tmp_path)
         Path(tmp_path).unlink(missing_ok=True)
         
         user_text = stt_result["text"]
@@ -476,8 +476,8 @@ async def get_audio_models():
         "tts": None
     }
     
-    if whisper_stt:
-        models_info["stt"] = whisper_stt.get_model_info()
+    if typhoon_stt:
+        models_info["stt"] = typhoon_stt.get_model_info()
     
     if vachana_tts:
         models_info["tts"] = vachana_tts.get_model_info()

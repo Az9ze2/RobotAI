@@ -1,13 +1,13 @@
 """
 Continuous Voice Chat with LLM
-Interactive conversation using STT (Whisper) + LLM (Ollama/Typhoon) + TTS (VachanaTTS)
+Interactive conversation using STT (Typhoon ASR) + LLM (Ollama/Typhoon) + TTS (VachanaTTS)
 """
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from stt.whisper_client import WhisperSTT
+from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
 from utils.audio_utils import record_audio, play_audio_file, save_audio
 import requests
@@ -33,10 +33,11 @@ class VoiceChatBot:
             self.config = yaml.safe_load(f)
         
         # Initialize STT
-        print("\n📥 Loading Whisper STT...")
-        self.stt = WhisperSTT(
-            model_size=self.config['stt']['model'],
-            language=self.config['stt']['language']
+        print("\n📥 Loading Typhoon ASR...")
+        self.stt = TyphoonASR(
+            model_name="scb10x/typhoon-asr-realtime",
+            language=self.config['stt']['language'],
+            device="auto"
         )
         print("✅ STT Ready")
         
@@ -335,7 +336,7 @@ def main():
     print("🤖 "*35)
     
     print("\n📋 Features:")
-    print("   ✅ Speech-to-Text (Whisper)")
+    print("   ✅ Speech-to-Text (Typhoon ASR)")
     print("   ✅ AI Conversation (Typhoon LLM)")
     print("   ✅ Text-to-Speech (VachanaTTS)")
     print("   ✅ Continuous conversation")
