@@ -85,3 +85,56 @@ logging:
   level: "INFO"
   file: "./logs/ai_brain.log"
   rotation: "500 MB"
+
+# Vision System (Face Detection & Recognition)
+vision:
+  # Face Detection (SCRFD)
+  detection:
+    model_path: "./models/scrfd_2.5g_kps_fp16.onnx"
+    confidence_threshold: 0.7
+    nms_threshold: 0.4
+    input_size: [640, 640]
+    use_tensorrt: true
+    device: "cuda"
+  
+  # Tracking (ByteTrack)
+  tracking:
+    track_thresh: 0.6
+    track_buffer: 30
+    match_thresh: 0.8
+    min_box_area: 100
+  
+  # Head Pose
+  head_pose:
+    yaw_threshold: 30.0
+    pitch_threshold: 20.0
+    roll_threshold: 45.0
+  
+  # Recognition Trigger
+  recognition:
+    min_track_frames: 3
+    cooldown_seconds: 5.0
+    require_attention: true
+  
+  # Face Recognition (ArcFace)
+  face_recognition:
+    model_path: "./models/arcface_r100_v1_fp16.onnx"
+    embedding_dim: 512
+    use_tensorrt: true
+    device: "cuda"
+  
+  # Student Database (Milvus)
+  student_db:
+    collection_name: "student_faces"
+    similarity_threshold: 0.6
+    top_k: 1
+    embeddings_per_student: 5
+    index_type: "IVF_FLAT"
+    metric_type: "COSINE"
+  
+  # Enrollment
+  enrollment:
+    min_face_size: 112
+    max_blur_threshold: 100.0
+    required_angles: ["front", "left", "right"]
+    quality_threshold: 0.8
