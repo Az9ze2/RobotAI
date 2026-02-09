@@ -2,7 +2,7 @@
 Vision module for face detection, tracking, and recognition.
 
 This module provides:
-- Face detection using SCRFD (InsightFace)
+- Face detection using SCRFD (InsightFace) - supports both ONNX and PyTorch
 - Multi-face tracking using ByteTrack
 - Head pose estimation from facial landmarks
 - Face recognition using ArcFace
@@ -10,6 +10,8 @@ This module provides:
 """
 
 from .detector import SCRFDDetector
+from .detector_pytorch import SCRFDPyTorchDetector
+from .detector_factory import create_scrfd_detector
 from .tracker import ByteTracker
 from .head_pose import HeadPoseEstimator
 from .recognition_trigger import RecognitionTrigger
@@ -20,6 +22,8 @@ from .pipeline import FaceRecognitionPipeline
 
 __all__ = [
     "SCRFDDetector",
+    "SCRFDPyTorchDetector",
+    "create_scrfd_detector",
     "ByteTracker",
     "HeadPoseEstimator",
     "RecognitionTrigger",

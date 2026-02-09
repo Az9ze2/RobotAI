@@ -90,12 +90,12 @@ logging:
 vision:
   # Face Detection (SCRFD)
   detection:
-    model_path: "./models/scrfd_2.5g_kps_fp16.onnx"
+    model_path: "./models/scrfd_2.5g_kps.pth"  # PyTorch model (uses OpenCV fallback for now)
     confidence_threshold: 0.7
     nms_threshold: 0.4
     input_size: [640, 640]
-    use_tensorrt: true
-    device: "cuda"
+    use_tensorrt: false  # Not applicable for PyTorch models
+    device: "cpu"  # Change to "cuda" if GPU available
   
   # Tracking (ByteTrack)
   tracking:

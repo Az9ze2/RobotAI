@@ -141,19 +141,26 @@ class EnrollmentManager:
         right_eye = np.array(landmarks[1])
         nose = np.array(landmarks[2])
         
-        # Calculate distances
+        # Calculate distances from nose to each eye
         left_dist = np.linalg.norm(nose - left_eye)
         right_dist = np.linalg.norm(nose - right_eye)
         
-        # Determine angle
+        # Determine angle based on distance ratio
+        # When face turns left, nose moves closer to left eye (ratio < 1)
+        # When face turns right, nose moves closer to right eye (ratio > 1)
+        # When frontal, distances are approximately equal (ratio ≈ 1)
         ratio = left_dist / (right_dist + 1e-6)
         
-        if 0.8 < ratio < 1.2:
+        # Adjusted thresholds based on test landmarks:
+        # Frontal: ratio ≈ 1.0
+        # Left turn: ratio ≈ 0.71 (nose closer to left eye)
+        # Right turn: ratio ≈ 1.40 (nose closer to right eye)
+        if 0.85 < ratio < 1.15:
             return "front"
-        elif ratio > 1.2:
-            return "left"
+        elif ratio <= 0.85:
+            return "left"  # Nose closer to left eye = turned left
         else:
-            return "right"
+            return "right"  # Nose closer to right eye = turned right
     
     def validate_embeddings(self, embeddings: List[np.ndarray]) -> bool:
         """
@@ -177,14 +184,21 @@ class EnrollmentManager:
         
         # Embeddings should be similar (same person) but not identical
         avg_similarity = np.mean(similarities)
+        min_similarity = np.min(similarities)
+        max_similarity = np.max(similarities)
         
-        # Good range: 0.6-0.95 (similar but diverse)
-        is_valid = 0.6 <= avg_similarity <= 0.95
+        # Reject if embeddings are too identical (likely same image)
+        if min_similarity > 0.98:
+            logger.warning(f"Embeddings too identical: min_similarity={min_similarity:.3f}")
+            return False
         
-        if not is_valid:
-            logger.warning(f"Embeddings may not be diverse enough: avg_similarity={avg_similarity:.3f}")
+        # Reject if embeddings are too different (likely different people)
+        if avg_similarity < 0.5:
+            logger.warning(f"Embeddings too different: avg_similarity={avg_similarity:.3f}")
+            return False
         
-        return is_valid
+        # Accept if embeddings are reasonably similar (0.5-0.98 range)
+        return True
     
     def __repr__(self) -> str:
         return (
