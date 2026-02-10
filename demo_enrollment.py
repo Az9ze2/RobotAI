@@ -126,7 +126,7 @@ class EnrollmentDemo:
                         cv2.circle(display, (int(lx), int(ly)), 3, (0, 0, 255), -1)
                 
                 # Check quality
-                quality = self.enrollment_mgr.check_face_quality(frame, bbox, landmarks)
+                quality = self.enrollment_mgr.check_face_quality(frame, bbox, landmarks, expected_angle=angle_name)
                 
                 # Display quality feedback
                 feedback_y = y2 + 30
@@ -153,7 +153,7 @@ class EnrollmentDemo:
                 if len(detections) == 1:
                     det = detections[0]
                     quality = self.enrollment_mgr.check_face_quality(
-                        frame, det['bbox'], det.get('landmarks')
+                        frame, det['bbox'], det.get('landmarks'), expected_angle=angle_name
                     )
                     
                     if quality['passed']:

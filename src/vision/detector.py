@@ -192,9 +192,9 @@ class SCRFDDetector:
                     bbox = bboxes[gy, gx, anchor_idx]
                     kp = kps[gy, gx, anchor_idx]
                     
-                    # Calculate anchor center
-                    cx = (gx + 0.5) * stride
-                    cy = (gy + 0.5) * stride
+                    # Calculate anchor center (no 0.5 offset for det_10g model)
+                    cx = gx * stride
+                    cy = gy * stride
                     
                     # Decode bbox: distances from anchor center
                     x1 = cx - bbox[0] * stride

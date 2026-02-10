@@ -27,6 +27,7 @@ from vision.tracker import ByteTracker
 from vision.head_pose import HeadPoseEstimator
 from vision.recognition_trigger import RecognitionTrigger
 from vision.recognizer import FaceRecognizer
+from vision.database import EnrollmentDatabase
 
 class VisualPipelineDemo:
     """Real-time pipeline demo with visual feedback."""
@@ -88,6 +89,12 @@ class VisualPipelineDemo:
         
         # Track confirmed recognitions (persists after first trigger)
         self.confirmed_tracks = set()  # Set of track IDs that have been confirmed
+        self.track_names = {}  # Dictionary mapping track_id -> student_name (persists)
+        
+        # Load enrollment database
+        print("  Loading enrollment database...")
+        self.db = EnrollmentDatabase("data/enrollments.json")
+        print(f"    Loaded {len(self.db)} enrolled students")
         
         print("✓ Pipeline initialized successfully!\n")
     
@@ -183,10 +190,28 @@ class VisualPipelineDemo:
         
         # Track info
         if track:
-            # Track ID only (removed age)
-            label = f"ID:{track.track_id}"
-            cv2.putText(frame, label, (x1, y1 - 10), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            # Check if we have a persistent name for this track
+            student_name = self.track_names.get(track.track_id)
+            
+            # Debug: Print track_names dictionary periodically
+            if self.frame_count % 30 == 0 and self.track_names:
+                print(f"DEBUG: track_names = {self.track_names}, current track_id = {track.track_id}")
+            
+            # Display student name if recognized (from persistent storage)
+            if student_name:
+                name_label = f"{student_name}"
+                # Move name higher up to avoid overlapping
+                cv2.putText(frame, name_label, (x1, y1 - 70), 
+                           cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 255, 255), 2)
+                # Track ID below name
+                id_label = f"ID:{track.track_id}"
+                cv2.putText(frame, id_label, (x1, y1 - 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
+            else:
+                # Track ID only (no name yet)
+                label = f"ID:{track.track_id}"
+                cv2.putText(frame, label, (x1, y1 - 10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             
             # Head pose
             if hasattr(track, 'head_pose') and track.head_pose:
@@ -290,14 +315,36 @@ class VisualPipelineDemo:
             
             # Step 5: Extract embedding if triggered
             if track.should_recognize and self.recognizer_available:
+                # Skip if already recognized
+                if track.track_id in self.track_names:
+                    continue
+                    
                 try:
+                    # Get landmarks safely
+                    landmarks = det.get("landmarks") if isinstance(det, dict) else None
+                    
                     embedding = self.recognizer.extract_embedding(
-                        frame, track.bbox, det.get("landmarks")
+                        frame, track.bbox, landmarks
                     )
                     track.has_embedding = True
+                    
+                    # Recognize student from database
+                    result = self.db.recognize(embedding, threshold=0.4)
+                    if result:
+                        # Result is a tuple: (student_id, similarity, name)
+                        student_id, similarity, student_name = result
+                        
+                        # Store in persistent dictionary
+                        self.track_names[track.track_id] = student_name
+                        print(f"  → Recognized: {student_name} (ID: {student_id}, similarity: {similarity:.3f})")
+                        print(f"  → Stored in track_names[{track.track_id}] = '{student_name}'")
+                    else:
+                        # Store "Unknown" in persistent dictionary
+                        self.track_names[track.track_id] = "Unknown"
+                        print(f"  → Unknown person (no match above threshold)")
+                    
                     # Mark this track as confirmed (persists for LLM interaction)
                     self.confirmed_tracks.add(track.track_id)
-                    print(f"  → Extracted embedding for Track {track.track_id}")
                 except Exception as e:
                     print(f"  → Failed to extract embedding: {e}")
                     track.has_embedding = False
