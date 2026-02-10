@@ -112,7 +112,8 @@ class ByteTracker:
                 low_conf_dets.append(det)
         
         # Get tracked and lost tracks
-        tracked_tracks = [t for t in self.tracks if t.state == "tracked"]
+        # Include both "tracked" and "new" tracks for matching
+        tracked_tracks = [t for t in self.tracks if t.state in ["tracked", "new"]]
         lost_tracks = [t for t in self.tracks if t.state == "lost"]
         
         # First association: match high-confidence detections with tracked tracks
@@ -188,6 +189,16 @@ class ByteTracker:
         for i, track in enumerate(tracks):
             for j, det in enumerate(detections):
                 iou_matrix[i, j] = self._iou(track.bbox, det["bbox"])
+        
+        # DEBUG: Log IOU values
+        if not hasattr(self, '_logged_iou'):
+            logger.info(f"IOU Matrix (first detection):")
+            logger.info(f"  Threshold: {threshold}")
+            if len(tracks) > 0 and len(detections) > 0:
+                logger.info(f"  Track bbox: {tracks[0].bbox}")
+                logger.info(f"  Detection bbox: {detections[0]['bbox']}")
+                logger.info(f"  IOU: {iou_matrix[0, 0]:.4f}")
+            self._logged_iou = True
         
         # Greedy matching
         matched_tracks = []

@@ -147,16 +147,99 @@ class SCRFDDetector:
             original_shape: Original image shape (height, width)
         
         Returns:
-            List of detections, each containing:
-                - bbox: [x1, y1, x2, y2]
-                - confidence: float
-                - landmarks: [[x, y], ...] (5 keypoints)
+            List of detections with bboxes, confidences, and landmarks
         """
         detections = []
         
-        # Parse outputs based on SCRFD model structure
-        # Typically: [bboxes, scores, landmarks]
-        if len(outputs) >= 3:
+        # Handle Buffalo_L det_10g model (9 outputs)
+        # This model uses 2 anchors per grid cell
+        # Output format: [Score8, Score16, Score32, BBox8, BBox16, BBox32, KPS8, KPS16, KPS32]
+        # BBox format: [left_dist, top_dist, right_dist, bottom_dist] from anchor center
+        # KPS format: [x_offset, y_offset] pairs from anchor center
+        if len(outputs) == 9:
+            strides = [8, 16, 32]
+            num_anchors = 2
+            
+            all_bboxes = []
+            all_scores = []
+            all_kps = []
+            
+            for i, stride in enumerate(strides):
+                score_blob = outputs[i]          # (N, 1)
+                bbox_blob = outputs[i + 3]       # (N, 4)
+                kps_blob = outputs[i + 6]        # (N, 10)
+                
+                # Calculate grid dimensions
+                grid_h = self.input_size[1] // stride
+                grid_w = self.input_size[0] // stride
+                
+                # Reshape to (grid_h, grid_w, num_anchors, ...)
+                scores = score_blob.reshape(grid_h, grid_w, num_anchors)
+                bboxes = bbox_blob.reshape(grid_h, grid_w, num_anchors, 4)
+                kps = kps_blob.reshape(grid_h, grid_w, num_anchors, 10)
+                
+                # Find high confidence detections
+                high_conf_mask = scores > self.confidence_threshold
+                high_conf_indices = np.where(high_conf_mask)
+                
+                # Decode each detection
+                for idx in range(len(high_conf_indices[0])):
+                    gy = high_conf_indices[0][idx]
+                    gx = high_conf_indices[1][idx]
+                    anchor_idx = high_conf_indices[2][idx]
+                    
+                    score = scores[gy, gx, anchor_idx]
+                    bbox = bboxes[gy, gx, anchor_idx]
+                    kp = kps[gy, gx, anchor_idx]
+                    
+                    # Calculate anchor center
+                    cx = (gx + 0.5) * stride
+                    cy = (gy + 0.5) * stride
+                    
+                    # Decode bbox: distances from anchor center
+                    x1 = cx - bbox[0] * stride
+                    y1 = cy - bbox[1] * stride
+                    x2 = cx + bbox[2] * stride
+                    y2 = cy + bbox[3] * stride
+                    
+                    decoded_bbox = np.array([x1, y1, x2, y2])
+                    
+                    # Decode keypoints: offsets from anchor center
+                    decoded_kps = np.zeros(10)
+                    for k in range(5):
+                        decoded_kps[k*2] = cx + kp[k*2] * stride
+                        decoded_kps[k*2+1] = cy + kp[k*2+1] * stride
+                    
+                    all_bboxes.append(decoded_bbox)
+                    all_scores.append(score)
+                    all_kps.append(decoded_kps)
+            
+            if not all_bboxes:
+                return []
+            
+            # Convert to arrays
+            bboxes = np.array(all_bboxes)
+            scores = np.array(all_scores)
+            landmarks = np.array(all_kps)
+            
+            # Apply NMS
+            keep_indices = self._nms(bboxes, scores, self.nms_threshold)
+            
+            # Scale back to original image size
+            for idx in keep_indices:
+                det_bbox = bboxes[idx] / scale
+                det_kpts = landmarks[idx].reshape(-1, 2) / scale
+                
+                detection = {
+                    "bbox": det_bbox.tolist(),
+                    "confidence": float(scores[idx]),
+                    "landmarks": det_kpts.tolist()
+                }
+                detections.append(detection)
+                
+        # Handle other model structures (fallback)
+        elif len(outputs) >= 3:
+            # Original logic for standard models
             bboxes = outputs[0]
             scores = outputs[1]
             landmarks = outputs[2]
@@ -242,6 +325,13 @@ class SCRFDDetector:
         
         # Run inference
         outputs = self.session.run(self.output_names, {self.input_name: input_tensor})
+
+        # DEBUG: Print first output shape to identify model type
+        if not hasattr(self, '_logged_shapes'):
+            logger.info("ONNX Model Output Shapes:")
+            for i, out in enumerate(outputs):
+                logger.info(f"  Output {i}: {out.shape}")
+            self._logged_shapes = True
         
         # Postprocess
         detections = self.postprocess(outputs, scale, image.shape[:2])

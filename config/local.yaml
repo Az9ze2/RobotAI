@@ -90,11 +90,11 @@ logging:
 vision:
   # Face Detection (SCRFD)
   detection:
-    model_path: "./models/scrfd_2.5g_kps.pth"  # PyTorch model (uses OpenCV fallback for now)
-    confidence_threshold: 0.7
+    model_path: "./models/buffalo_l/det_10g.onnx"  # Use existing 10G model (high accuracy)
+    confidence_threshold: 0.5
     nms_threshold: 0.4
     input_size: [640, 640]
-    use_tensorrt: false  # Not applicable for PyTorch models
+    use_tensorrt: false  # Set to true for Jetson Orin with TensorRT
     device: "cpu"  # Change to "cuda" if GPU available
   
   # Tracking (ByteTrack)
