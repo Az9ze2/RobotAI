@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
+from mcp.context_builder import ContextBuilder
 import sounddevice as sd
 import soundfile as sf
 import numpy as np
@@ -24,7 +25,7 @@ class SafeVoiceChatBot:
     Includes timeouts and proper cleanup
     """
     
-    def __init__(self):
+    def __init__(self, student_id: str = None, student_name: str = None):
         """Initialize voice chat bot"""
         print("\n" + "="*70)
         print("🤖 SAFE VOICE CHAT BOT - Initializing...")
@@ -34,6 +35,21 @@ class SafeVoiceChatBot:
         config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = yaml.safe_load(f)
+        
+        # Initialize MCP Context Builder
+        print("\n📊 Initializing Context Builder...")
+        self.context_builder = ContextBuilder()
+        self.session_id = "voice_chat_session"
+        self.context_builder.create_session(self.session_id)
+        
+        # Set student identity if provided
+        if student_id and student_name:
+            self.context_builder.update_student_identity(
+                self.session_id, student_id, student_name
+            )
+            print(f"✅ Student: {student_name} (ID: {student_id})")
+        else:
+            print("ℹ️  No student identity - using generic responses")
         
         # Initialize STT
         print("\n📥 Loading Typhoon ASR...")
@@ -176,20 +192,36 @@ class SafeVoiceChatBot:
                 pass
     
     def get_llm_response(self, user_text: str) -> str:
-        """Get response from LLM or fallback"""
+        """Get response from LLM with student context"""
         if not self.llm_url:
             return self._get_fallback_response(user_text)
         
         try:
-            # Simple context from last 2 exchanges
-            context = ""
-            if self.history:
-                for h in self.history[-2:]:
-                    context += f"User: {h['user']}\nAssistant: {h['assistant']}\n"
+            # Add conversation turn to context
+            self.context_builder.add_conversation_turn(
+                self.session_id, "user", user_text
+            )
             
-            prompt = f"""คุณเป็นหุ่นยนต์บริการในมหาวิทยาลัย ตอบสั้นๆ กระชับ ไม่เกิน 3 ประโยค
+            # Build context with student info
+            llm_context = self.context_builder.build_llm_context(self.session_id)
+            context_text = self.context_builder.format_context_as_prompt(llm_context)
+            
+            prompt = f"""คุณคือ "น้องบอท" หุ่นยนต์บริการในสถาบันเทคโนโลยีพระจอมเกล้าคุณทหารลาดกระบัง
+คุณพูดภาษาไทยอย่างเป็นกันเอง ใช้คำลงท้าย "ครับ" เพียงครั้งเดียวต่อประโยค
 
-{context}
+ตอบสั้นๆ กระชับ ไม่เกิน 2 ประโยค
+เรียกชื่อนักศึกษาในทุกการตอบเพื่อสร้างความเป็นกันเอง
+
+กฎการทักทาย (ตามชั้นปี):
+- ปี 1: "ยินดีต้อนรับสู่สถาบันเทคโนโลยีพระจอมเกล้าคุณทหารลาดกระบังครับคุณ{{ชื่อ}}"
+- ปี 2: "สวัสดีครับคุณ{{ชื่อ}} มีโปรเจคอะไรให้ช่วยไหมครับ"
+- ปี 3: "สวัสดีครับคุณ{{ชื่อ}} เตรียมตัวฝึกงานเป็นอย่างไรบ้างครับ"
+- ปี 4: "สวัสดีครับคุณ{{ชื่อ}} โปรเจคจบเป็นอย่างไรบ้างครับ"
+
+สำคัญ: ตอบเฉพาะเนื้อหา ห้ามใส่ "น้องบอท:" หรือชื่อหุ่นยนต์นำหน้าคำตอบ
+
+{context_text}
+
 User: {user_text}
 Assistant:"""
 
@@ -204,12 +236,21 @@ Assistant:"""
                         "num_predict": 100
                     }
                 },
-                timeout=15  # 15 second timeout
+                timeout=30  # Increased for reliability
             )
             
             if response.status_code == 200:
                 result = response.json()
-                return result['response'].strip()
+                llm_response = result.get('response', '').strip()
+                
+                if llm_response:
+                    # Add assistant response to context
+                    self.context_builder.add_conversation_turn(
+                        self.session_id, "assistant", llm_response
+                    )
+                    return llm_response
+                else:
+                    return self._get_fallback_response(user_text)
             else:
                 return self._get_fallback_response(user_text)
                 
@@ -389,7 +430,11 @@ def main():
     print("   - Error recovery")
     
     try:
-        bot = SafeVoiceChatBot()
+        # Initialize with student info for personalized responses
+        bot = SafeVoiceChatBot(
+            student_id="65011356",
+            student_name="กฤติน"
+        )
         bot.run()
     except Exception as e:
         print(f"\n❌ Failed: {e}")

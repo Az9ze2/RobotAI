@@ -28,16 +28,49 @@ class ContextBuilder:
         }
         logger.info(f"Created session: {session_id}")
     
+    def _calculate_student_year(self, student_id: str) -> int:
+        """Calculate student year from ID (format: YYXXXXXX)"""
+        try:
+            # Extract enrollment year from first 2 digits
+            enrollment_year_short = int(student_id[:2])
+            enrollment_year = 2500 + enrollment_year_short  # Buddhist year
+            
+            # Get current date
+            now = datetime.now()
+            current_year_gregorian = now.year
+            current_year_buddhist = current_year_gregorian + 543
+            
+            # Academic year starts in August
+            # If we're before August, we're still in the previous academic year
+            if now.month < 8:
+                current_academic_year = current_year_buddhist - 1
+            else:
+                current_academic_year = current_year_buddhist
+            
+            # Calculate year (1-4)
+            # Students enroll in year YYYY and are Year 1 in academic year YYYY
+            year = current_academic_year - enrollment_year + 1
+            
+            # Clamp to 1-4 range
+            return max(1, min(4, year))
+        except (ValueError, IndexError):
+            logger.warning(f"Could not calculate year from ID: {student_id}")
+            return 1  # Default to year 1
+    
     def update_student_identity(self, session_id: str, 
                                 student_id: str, student_name: str) -> None:
         """Update student identity in session"""
         if session_id not in self.session_contexts:
             self.create_session(session_id)
         
+        # Calculate student year from ID
+        student_year = self._calculate_student_year(student_id)
+        
         self.session_contexts[session_id]["student_id"] = student_id
         self.session_contexts[session_id]["student_name"] = student_name
+        self.session_contexts[session_id]["student_year"] = student_year
         self.session_contexts[session_id]["last_updated"] = datetime.now().isoformat()
-        logger.info(f"Updated identity for session {session_id}: {student_name}")
+        logger.info(f"Updated identity for session {session_id}: {student_name} (Year {student_year})")
     
     def add_conversation_turn(self, session_id: str, 
                             role: str, content: str) -> None:
@@ -106,7 +139,8 @@ class ContextBuilder:
         llm_context = {
             "student_info": {
                 "id": ctx.get("student_id", "unknown"),
-                "name": ctx.get("student_name", "unknown")
+                "name": ctx.get("student_name", "unknown"),
+                "year": ctx.get("student_year", 1)
             },
             "conversation_history": ctx.get("conversation_history", [])[-5:],  # Last 5 turns
             "current_location": ctx.get("current_location", "unknown"),
@@ -139,10 +173,12 @@ class ContextBuilder:
         """
         prompt_parts = []
         
-        # Student info
+        # Student info with year
         student_name = llm_context["student_info"]["name"]
+        student_year = llm_context["student_info"].get("year", 1)
+        
         if student_name != "unknown":
-            prompt_parts.append(f"คุณกำลังพูดคุยกับ {student_name}")
+            prompt_parts.append(f"คุณกำลังพูดคุยกับ {student_name} (ชั้นปีที่ {student_year})")
         
         # Location
         location = llm_context.get("current_location")

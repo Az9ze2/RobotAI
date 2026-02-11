@@ -62,16 +62,20 @@ class VachanaTTS:
                 logger.warning("No TTS models found! Please download models first.")
                 logger.info(f"Place models in: {self.model_dir}")
             
-            # Set default model - prefer male voice
+            # Set default model - use MALEV1 for male voice
             if default_model and default_model in self.available_models:
                 self.default_model = default_model
             elif self.available_models:
-                # Prefer male voice models
-                male_models = [m for m in self.available_models if 'MALE' in m.upper()]
-                if male_models:
-                    self.default_model = male_models[0]  # Use first male model
+                # Explicitly use MALEV1 for male voice
+                if 'MMS-TTS-THAI-MALEV1' in self.available_models:
+                    self.default_model = 'MMS-TTS-THAI-MALEV1'
                 else:
-                    self.default_model = self.available_models[0]
+                    # Fallback to any male model
+                    male_models = [m for m in self.available_models if 'MALE' in m.upper()]
+                    if male_models:
+                        self.default_model = male_models[0]
+                    else:
+                        self.default_model = self.available_models[0]
             else:
                 self.default_model = None
                 
