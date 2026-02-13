@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
-from llm.typhoon_client import TyphoonClient
+from llm.ollama_client import OllamaClient
 
 
 class VoiceInferencePipeline:
@@ -25,7 +25,7 @@ class VoiceInferencePipeline:
             device="auto"
         )
         self.tts = VachanaTTS()
-        self.llm = TyphoonClient(
+        self.llm = OllamaClient(
             model=config['llm']['model'],
             api_url=config['llm']['api_url']
         )

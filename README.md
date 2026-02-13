@@ -100,7 +100,7 @@ pip install -r requirements.txt
 ```bash
 # Download from https://ollama.ai/
 # Then pull Typhoon model:
-ollama pull scb10x/typhoon2.1-gemma3-4b
+ollama pull qwen2.5:7b-instruct
 ```
 
 #### Setup VachanaTTS
@@ -125,7 +125,7 @@ tts:
 
 llm:
   api_url: "http://localhost:11434"
-  model: "scb10x/typhoon2.1-gemma3-4b:latest"
+  model: "qwen2.5:7b-instruct"
 ```
 
 ### 5. Run Voice Chat

@@ -19,7 +19,7 @@ import time
 # Import custom modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from vector_db.milvus_client import MilvusClient
-from llm.typhoon_client import TyphoonClient
+from llm.ollama_client import OllamaClient
 from mcp.context_builder import ContextBuilder
 from stt.typhoon_asr_client import TyphoonASR
 from tts.vachana_client import VachanaTTS
@@ -50,7 +50,7 @@ app.add_middleware(
 
 # Initialize components
 milvus_client = None
-typhoon_client = None
+ollama_client = None
 typhoon_stt = None
 vachana_tts = None
 context_builder = ContextBuilder()
@@ -96,7 +96,7 @@ class MemorySearch(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global milvus_client, typhoon_client, typhoon_stt, vachana_tts
+    global milvus_client, ollama_client, typhoon_stt, vachana_tts
     
     try:
         # Initialize Milvus
@@ -108,12 +108,12 @@ async def startup_event():
         )
         logger.info("Milvus client initialized")
         
-        # Initialize Typhoon LLM
-        typhoon_client = TyphoonClient(
+        # Initialize Ollama LLM
+        ollama_client = OllamaClient(
             api_url=config["llm"]["api_url"],
             model=config["llm"]["model"]
         )
-        logger.info("Typhoon LLM client initialized")
+        logger.info("Ollama LLM client initialized")
         
         # Initialize Typhoon ASR
         try:
@@ -269,7 +269,7 @@ async def process_speech(speech: SpeechInput):
         user_message = f"{context_text}\n\nนักศึกษา: {speech.text}\n\nน้องบอท:"
         
         # Get LLM response
-        llm_output = typhoon_client.generate_structured(
+        llm_output = ollama_client.generate_structured(
             system_prompt=system_prompt,
             user_message=user_message,
             temperature=config["llm"]["temperature"]

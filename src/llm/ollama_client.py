@@ -9,11 +9,11 @@ from typing import Dict, Optional, List
 from loguru import logger
 
 
-class TyphoonClient:
+class OllamaClient:
     def __init__(self, api_url: str = "http://localhost:11434", 
-                 model: str = "scb10x/typhoon2.1-gemma3-4b:latest"):
+                 model: str = "qwen2.5:7b-instruct"):
         """
-        Initialize Typhoon LLM client
+        Initialize Ollama LLM client
         
         Args:
             api_url: Ollama API endpoint
