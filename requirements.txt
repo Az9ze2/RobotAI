@@ -1,0 +1,119 @@
+# RobotAI - End-to-End Vision + Voice Interaction System
+# Complete dependency list for production deployment
+
+# ============================================================================
+# CORE DEPENDENCIES
+# ============================================================================
+
+# Python Version: 3.12+
+# Note: Some packages may require specific Python versions
+
+# API Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# ============================================================================
+# VISION SYSTEM
+# ============================================================================
+
+# ONNX Runtime (for face detection and recognition models)
+onnxruntime-gpu>=1.17.0  # Use onnxruntime for CPU-only
+
+# Computer Vision
+opencv-python>=4.8.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# ============================================================================
+# SPEECH-TO-TEXT (Typhoon ASR)
+# ============================================================================
+
+# Typhoon ASR Core
+nemo-toolkit[asr]==2.4.0
+
+# Audio Processing
+sounddevice==0.5.1
+soundfile==0.13.1
+librosa==0.11.0
+
+# ============================================================================
+# TEXT-TO-SPEECH (VachanaTTS/MMS)
+# ============================================================================
+
+# VachanaTTS
+# Install separately: pip install git+https://github.com/vistec-AI/VachanaTTS.git
+
+# Audio utilities
+pydub==0.25.1
+
+# ============================================================================
+# LLM (Ollama/Qwen 2.5)
+# ============================================================================
+
+# HTTP Client for Ollama API
+requests==2.31.0
+
+# Embeddings (if needed)
+sentence-transformers==2.2.2
+transformers==4.35.0
+
+# ============================================================================
+# CONTEXT MANAGEMENT
+# ============================================================================
+
+# Vector Database (optional - for memory/RAG)
+pymilvus==2.3.3
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+
+# Configuration
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# File I/O
+aiofiles==23.2.1
+
+# Database (optional)
+aiosqlite==0.19.0
+
+# Logging
+loguru==0.7.2
+
+# ============================================================================
+# PLATFORM-SPECIFIC
+# ============================================================================
+
+# Windows
+pywin32==306; sys_platform == 'win32'
+colorama==0.4.6; sys_platform == 'win32'
+
+# ============================================================================
+# DEEP LEARNING
+# ============================================================================
+
+# PyTorch (required by multiple components)
+torch==2.9.1
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# For NVIDIA Jetson Orin deployment:
+# - Replace onnxruntime-gpu with pre-built wheel from NVIDIA Jetson Zoo
+# - Use TensorRT-optimized ONNX Runtime for better performance
+# - May need to adjust PyTorch version for Jetson compatibility
+
+# Installation order:
+# 1. pip install torch (install first to avoid conflicts)
+# 2. pip install -r requirements.txt
+# 3. pip install git+https://github.com/vistec-AI/VachanaTTS.git
+# 4. Download models (see docs/SETUP.md)
+
+# Ollama Installation:
+# - Download from https://ollama.ai
+# - Run: ollama pull qwen2.5:7b-instruct
+# - Start server: ollama serve

@@ -1,6 +1,3 @@
-# Documentation folder (local only)
-docs/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -27,7 +24,6 @@ MANIFEST
 .pytest_cache/
 .coverage
 htmlcov/
-*.log
 
 # Virtual Environment
 venv/
@@ -46,94 +42,58 @@ ENV/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Machine Learning Models
-*.pth
-*.pt
-*.ckpt
-*.h5
-*.pb
-*.onnx
-*.safetensors
-models/
-checkpoints/
-weights/
-
-# Ollama/vLLM
-ollama/
-.ollama/
-vllm_cache/
-
-# Whisper Models
-whisper_models/
-*.whisper
-
-# VITS Models
-vits_models/
-*.vits
-
-# Typhoon LLM
-typhoon_models/
-
-# Milvus
-milvus_data/
-*.db
-*.sqlite
-*.sqlite3
-
-# PostgreSQL
-*.dump
-*.sql.gz
-pgdata/
-
-# FastAPI/MCP Server
+# Environment Variables
 .env
 .env.local
 .env.*.local
-*.pid
 
-# Logs
-logs/
+# Logs (keep directory, ignore log files)
+logs/*.log
 *.log
-log/
 
-# Data files
-data/
-datasets/
-*.csv
-*.json.bak
-*.pkl
-*.pickle
-
-# Temporary files
+# Temporary Files
 tmp/
 temp/
 *.tmp
 *.bak
-*.swp
+temp_*.wav
+temp_*.py
+temp_*.json
 
 # OS
 Thumbs.db
 Desktop.ini
 
-# Audio/Video (optional - uncomment if you don't want to track media files)
-# *.wav
-# *.mp3
-# *.mp4
-# *.avi
+# Audio/Video (temporary files only)
+temp_*.wav
+temp_*.mp3
+output_*.wav
+output_*.mp3
+*.wav.tmp
 
-# ROS2 (if any ROS2 files accidentally end up here)
-install/
-log/
-build/
+# Model cache (not the models themselves)
+.cache/
+*_cache/
+__pycache__/
 
-# Face recognition data
-face_data/
-face_encodings/
-*.npy
+# Database temporary files
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Design files
-design/
+# Backup files
+*.bak
+*.backup
+*~
 
-# Test files
-tests/
+# Outputs directory (keep directory, ignore contents)
+outputs/*
+!outputs/.gitkeep
 
+# Logs directory (keep directory, ignore contents)
+logs/*
+!logs/.gitkeep
+
+# Temporary Python files
+*.pyc.tmp
+*.pyo.tmp
