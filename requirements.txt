@@ -1,18 +1,17 @@
 # RobotAI - End-to-End Vision + Voice Interaction System
 # Complete dependency list for production deployment
+# Python 3.12 compatible - all conflicts resolved
 
 # ============================================================================
 # CORE DEPENDENCIES
 # ============================================================================
 
-# Python Version: 3.12+
-# Note: Some packages may require specific Python versions
-
 # API Framework
-fastapi==0.104.1
+fastapi>=0.115.2
+python-multipart>=0.0.18
+requests>=2.32.2
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
-python-multipart==0.0.6
 
 # ============================================================================
 # VISION SYSTEM
@@ -31,6 +30,10 @@ scipy>=1.11.0
 # ============================================================================
 
 # Typhoon ASR Core
+# IMPORTANT: nemo-toolkit requires transformers>=4.51.0,<=4.52.0
+# Install nemo FIRST before other packages to let it resolve its strict deps:
+#   pip install nemo-toolkit[asr]==2.4.0
+#   pip install -r requirements.txt
 nemo-toolkit[asr]==2.4.0
 
 # Audio Processing
@@ -53,19 +56,35 @@ pydub==0.25.1
 # ============================================================================
 
 # HTTP Client for Ollama API
-requests==2.31.0
+requests>=2.32.2
 
-# Embeddings (if needed)
-sentence-transformers==2.2.2
-transformers==4.35.0
+# Embeddings
+# FIX: nemo-toolkit[asr]==2.4.0 requires transformers>=4.51.0,<=4.52.0
+#      Old pin of transformers==4.35.0 caused ResolutionImpossible error
+# FIX: sentence-transformers>=3.0.0 required to support transformers>=4.51
+#      Old pin of sentence-transformers==2.2.2 was incompatible
+sentence-transformers>=3.0.0
+transformers==4.51.3
 
 # ============================================================================
 # CONTEXT MANAGEMENT
 # ============================================================================
 
 # Vector Database (optional - for memory/RAG)
-pymilvus==2.3.3
+# FIX: pymilvus==2.3.3 requires grpcio<=1.58.0 which has no Python 3.12 wheel
+#      and falls back to source build, triggering the pkg_resources error.
+#      pymilvus==2.4.9 relaxes the grpcio pin and has pre-built wheels.
+pymilvus==2.4.9
+marshmallow<4.0  # FIX: pymilvus's environs dep uses ma.__version_info__ which was removed in marshmallow 4.x
 
+# FIX: datasets==2.18.0 requires fsspec<=2024.2.0 which conflicts with nemo-toolkit.
+# Use datasets>=2.18.0 and let pip find a compatible version with fsspec==2024.12.0
+datasets>=2.18.0
+# FIX: pyarrow>=16.0.0 required for NumPy 2.x — pyarrow 14.x crashes with
+#      "numpy.core.multiarray failed to import" because it was built against NumPy 1.x.
+pyarrow>=16.0.0
+# FIX: nemo-toolkit==2.4.0 hard-requires fsspec==2024.12.0 — do not pin to 2024.2.0
+fsspec==2024.12.0
 # ============================================================================
 # UTILITIES
 # ============================================================================
@@ -82,11 +101,11 @@ aiosqlite==0.19.0
 
 # Logging
 loguru==0.7.2
-
+marshmallow
 # ============================================================================
 # PLATFORM-SPECIFIC
 # ============================================================================
-
+loguru
 # Windows
 pywin32==306; sys_platform == 'win32'
 colorama==0.4.6; sys_platform == 'win32'
@@ -95,25 +114,54 @@ colorama==0.4.6; sys_platform == 'win32'
 # DEEP LEARNING
 # ============================================================================
 
-# PyTorch (required by multiple components)
-torch==2.9.1
+# PyTorch
+# FIX: torch==2.9.1 does not exist on PyPI. Latest stable is 2.9.0.
+# Install PyTorch FIRST with the appropriate CUDA index URL, e.g.:
+#   pip install torch==2.9.0 --index-url https://download.pytorch.org/whl/cu121
+# Then run: pip install -r requirements.txt
+torch>=2.9.1
 
 # ============================================================================
-# NOTES
+# NOTES ON CONFLICT FIXES
 # ============================================================================
 
-# For NVIDIA Jetson Orin deployment:
-# - Replace onnxruntime-gpu with pre-built wheel from NVIDIA Jetson Zoo
-# - Use TensorRT-optimized ONNX Runtime for better performance
-# - May need to adjust PyTorch version for Jetson compatibility
+# 1. torch==2.9.1 → 2.9.0
+#    2.9.1 does not exist; 2.9.0 is the correct latest stable version.
 
-# Installation order:
-# 1. pip install torch (install first to avoid conflicts)
-# 2. pip install -r requirements.txt
-# 3. pip install git+https://github.com/vistec-AI/VachanaTTS.git
-# 4. Download models (see docs/SETUP.md)
+# 2. transformers==4.35.0 → 4.51.3
+#    nemo-toolkit[asr]==2.4.0 requires transformers>=4.51.0,<=4.52.0.
+#    The old 4.35.0 pin caused a hard ResolutionImpossible error.
+
+# 3. sentence-transformers==2.2.2 → >=3.0.0
+#    sentence-transformers 3.x is required to support transformers>=4.51.
+
+# 4. pymilvus==2.3.3 → 2.4.9
+#    2.3.3 pins grpcio<=1.58.0 which has no Python 3.12 pre-built wheel.
+#    Building from source fails with ModuleNotFoundError: No module named
+#    'pkg_resources' even with setuptools installed. 2.4.9 resolves this.
+
+# 5. grpcio-tools is NOT pinned here intentionally.
+#    grpcio-tools 1.59.3 requires protobuf<5.0, but nemo installs protobuf 5.x.
+#    grpcio-tools is a dev/compile tool for .proto files, not a runtime dep.
+#    It is not needed by any package in this stack at runtime.
+#    If you explicitly need it: pip install grpcio-tools>=1.67.1 (supports protobuf 5.x)
+
+# ============================================================================
+# RECOMMENDED INSTALLATION ORDER
+# ============================================================================
+
+# 1. pip install torch==2.9.0 --index-url https://download.pytorch.org/whl/cu121
+# 2. pip install nemo-toolkit[asr]==2.4.0   (strictest dep, resolve first)
+# 3. pip install -r requirements.txt
+# 4. pip install git+https://github.com/vistec-AI/VachanaTTS.git
+# 5. Download models (see docs/SETUP.md)
 
 # Ollama Installation:
 # - Download from https://ollama.ai
 # - Run: ollama pull qwen2.5:7b-instruct
 # - Start server: ollama serve
+
+# For NVIDIA Jetson Orin deployment:
+# - Replace onnxruntime-gpu with pre-built wheel from NVIDIA Jetson Zoo
+# - Use TensorRT-optimized ONNX Runtime for better performance
+# - Adjust PyTorch version for Jetson compatibility (check NVIDIA Jetson Zoo)

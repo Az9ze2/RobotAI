@@ -97,3 +97,8 @@ logs/*
 # Temporary Python files
 *.pyc.tmp
 *.pyo.tmp
+
+vachanatts
+
+
+models/

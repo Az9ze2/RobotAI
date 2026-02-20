@@ -1,64 +1,81 @@
-# PC AI Brain Configuration
+# # PC AI Brain Configuration
 
-# API Settings
-api:
-  host: "0.0.0.0"
-  port: 8000
-  debug: true
+# # API Settings
+# api:
+#   host: "0.0.0.0"
+#   port: 8000
+#   debug: true
 
-# LLM Settings
+# # LLM Settings
+# llm:
+#   provider: "ollama"
+#   model: "qwen2.5:7b-instruct"
+#   api_url: "http://localhost:11434"
+#   max_tokens: 512
+#   temperature: 0.7
+
+# # Embedding Model
+# embedding:
+#   model_name: "BAAI/bge-m3"
+#   dimension: 1024
+#   device: "cuda"  # or "cpu"
+
+# # Milvus Vector DB
+# milvus:
+#   host: "localhost"
+#   port: 19530
+#   collection_name: "robot_memory"
+
+# # Speech-to-Text
+# stt:
+#   model: "small"  # whisper model size
+#   language: "th"
+#   confidence_threshold: 0.7
+
+# # Text-to-Speech (VachanaTTS)
+# tts:
+#   vachana_path: "C:/Users/Win 10 Pro/Desktop/VachanaTTS"
+#   default_model: "MMS-TTS-THAI-MALEV1"  # Male voice, 22kHz, 0.068s avg
+#   fallback_model: "MMS-TTS-THAI-MALEV2"  # Backup male voice
+#   speaking_rate: 1.0
+#   sample_rate: 22050
+#   device: "cuda"
+#   cache_enabled: true
+
+# # Database
+# database:
+#   path: "./database/metadata.db"
+
+# # Session Management
+# session:
+#   timeout_seconds: 1800  # 30 minutes
+#   max_history: 10
+
+# # Memory Settings
+# memory:
+#   diary_summary_length: 200
+#   retrieval_top_k: 5
+#   similarity_threshold: 0.75
+
+# # Logging
+# logging:
+#   level: "INFO"
+#   file: "./logs/ai_brain.log"
+#   rotation: "500 MB"
+
 llm:
-  provider: "ollama"
+  api_url: "http://localhost:11434"  # Ollama API
   model: "qwen2.5:7b-instruct"
-  api_url: "http://localhost:11434"
-  max_tokens: 512
-  temperature: 0.7
 
-# Embedding Model
-embedding:
-  model_name: "BAAI/bge-m3"
-  dimension: 1024
-  device: "cuda"  # or "cpu"
+vision:
+  detector_model: "models/buffalo_l/det_10g.onnx"
+  recognizer_model: "models/arcface_r100_v1_fp16.onnx"
+  confidence_threshold: 0.5
 
-# Milvus Vector DB
-milvus:
-  host: "localhost"
-  port: 19530
-  collection_name: "robot_memory"
-
-# Speech-to-Text
 stt:
-  model: "small"  # whisper model size
+  model: "scb10x/typhoon-asr-realtime"
   language: "th"
-  confidence_threshold: 0.7
 
-# Text-to-Speech (VachanaTTS)
 tts:
-  vachana_path: "C:/Users/Win 10 Pro/Desktop/VachanaTTS"
-  default_model: "MMS-TTS-THAI-MALEV1"  # Male voice, 22kHz, 0.068s avg
-  fallback_model: "MMS-TTS-THAI-MALEV2"  # Backup male voice
-  speaking_rate: 1.0
-  sample_rate: 22050
-  device: "cuda"
-  cache_enabled: true
-
-# Database
-database:
-  path: "./database/metadata.db"
-
-# Session Management
-session:
-  timeout_seconds: 1800  # 30 minutes
-  max_history: 10
-
-# Memory Settings
-memory:
-  diary_summary_length: 200
-  retrieval_top_k: 5
-  similarity_threshold: 0.75
-
-# Logging
-logging:
-  level: "INFO"
-  file: "./logs/ai_brain.log"
-  rotation: "500 MB"
+  model: "MMS-TTS-THAI-MALEV1"
+  voice: "male"

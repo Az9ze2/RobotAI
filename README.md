@@ -132,57 +132,18 @@ RobotAI is a complete end-to-end interaction pipeline designed for KMITL (King M
 git clone https://github.com/yourusername/RobotAI.git
 cd RobotAI
 
-# 2. Install dependencies
-pip install torch==2.9.1+cu128 --index-url https://download.pytorch.org/whl/cu128
-pip install nemo-toolkit[asr]==2.4.0
-sudo apt-get install ffmpeg
-pip install -r requirements.txt
-pip install git+https://github.com/VYNCX/VachanaTTS.git
+# 2. Install dependencies (have requirements.txt inside already)
+chmod +x setup.sh
+./setup.sh
 
-# 3. Download models (see Models section)
-# Place models in models/ directory
-
-# 4. Install and start Ollama
-# Download from https://ollama.ai
-sudo snap install ollama
-ollama pull qwen2.5:7b-instruct
-ollama serve
-
-# 5. Install Docker and milvus
-# Add Docker's official GPG key:
-sudo apt update
-sudo apt install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add the repository to Apt sources:
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-Components: stable
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-
-sudo apt update
-
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Download the compose file
-wget https://github.com/milvus-io/milvus/releases/download/v2.4.0/milvus-standalone-docker-compose.yml -O docker-compose.yml
-
-# Create a folder and move into it
-mkdir -p ~/milvus && mv docker-compose.yml ~/milvus/
+# 3. Start Milvus
 cd ~/milvus
-
-# Start Milvus
 sudo docker compose up -d
 
-# 6. Enroll a student
+# 4. Enroll a student
 python demos/demo_enrollment.py
 
-# 7. Run the end-to-end demo
+# 5. Run the end-to-end demo
 python demos/demo_end_to_end.py
 ```
 
@@ -219,25 +180,14 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
+
 ### Step 3: Install Dependencies
 
 ```bash
-# Install PyTorch first (important!)
-pip install torch torchvision
-
-# Install all other dependencies
-pip install -r requirements.txt
-
-# install the PortAudio system library
-sudo apt-get install libportaudio2 portaudio19-dev
-
-# Install VachanaTTS
-git clone https://github.com/VYNCX/VachanaTTS.git
-cd VachanaTTS
-pip install -r requirements.txt
-cd ..
+# edit setup.sh at line 27 "VACHANA_DIR"to your folder path
+chmod +x setup.sh
+./setup.sh
 ```
-
 ### Step 4: Download Models
 
 #### Face Detection (SCRFD 10G)
@@ -259,7 +209,7 @@ pip install -U insightface
 #### LLM (Qwen 2.5)
 ```bash
 # Install Ollama from https://ollama.ai
-ollama pull qwen2.5:7b-instruct
+#Already installed by setup.sh
 ```
 
 #### STT (Typhoon ASR)
@@ -270,7 +220,8 @@ ollama pull qwen2.5:7b-instruct
 
 #### TTS (VachanaTTS MMS)
 ```bash
-# Automatically downloaded on first run
+# download zip model from ..., then unzip and move that folder to /RobotAI/vachanatts/models
+# https://huggingface.co/VIZINTZOR/MMS-TTS-THAI-MALEV1
 # Model: MMS-TTS-THAI-MALEV1
 ```
 
@@ -308,10 +259,10 @@ python demos/demo_enrollment.py
 ```
 
 - Enter student ID (format: YYXXXXXX, e.g., 65011356)
-- Enter student name (Thai or English)
+- Enter student name (Thai and English)
 - Look at camera from multiple angles
 - System captures 5 face images
-- Enrollment saved to `data/enrollments.json`
+- Enrollment saved to `database/dataset/registration.json`
 
 ### 2. Run End-to-End Demo
 

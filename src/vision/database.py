@@ -45,9 +45,13 @@ class EnrollmentDatabase:
     def enroll_student(
         self,
         student_id: str,
-        name: str,
         embeddings: List[np.ndarray],
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
+        fullname_thai: str = "",
+        fullname_eng: str = "",
+        nickname_thai: str = "",
+        nickname_eng: str = "",
+        name: str = "",
     ) -> bool:
         """
         Enroll a new student or update existing enrollment.
@@ -62,8 +66,20 @@ class EnrollmentDatabase:
             True if enrollment successful
         """
         try:
+            if fullname_eng or fullname_thai:
+                name_block = {
+                    "fullname_thai": fullname_thai,
+                    "fullname_eng":  fullname_eng,
+                    "nickname_thai": nickname_thai,
+                    "nickname_eng":  nickname_eng,
+                }
+                display_name = fullname_eng or fullname_thai
+            else:
+                name_block = name
+                display_name = name
+
             self.enrollments[student_id] = {
-                'name': name,
+                'name': name_block,
                 'student_id': student_id,
                 'embeddings': embeddings,
                 'enrolled_date': datetime.now().isoformat(),
@@ -71,7 +87,7 @@ class EnrollmentDatabase:
             }
             
             self._save()
-            logger.info(f"Enrolled student: {name} ({student_id}) with {len(embeddings)} embeddings")
+            logger.info(f"Enrolled student: {display_name} ({student_id}) with {len(embeddings)} embeddings")
             return True
             
         except Exception as e:

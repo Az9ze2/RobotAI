@@ -5,11 +5,18 @@ Interactive demo for enrolling students with multi-angle face capture.
 Captures 5 angles: straight, left, right, up, down
 """
 
+import os
 import cv2
 import sys
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+
+try:
+    from pymilvus import connections, Collection, utility, CollectionSchema, FieldSchema, DataType
+    _MILVUS_AVAILABLE = True
+except ImportError:
+    _MILVUS_AVAILABLE = False
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -58,12 +65,92 @@ class EnrollmentDemo:
         
         # Initialize database
         print("  Loading enrollment database...")
-        self.db = EnrollmentDatabase("data/enrollments.json")
+        # Save registrations to the shared database dataset directory
+        _registration_path = Path(__file__).resolve().parent.parent.parent / "database" / "dataset" / "registration.json"
+        self.db = EnrollmentDatabase(str(_registration_path))
         
+        # Connect to Milvus and ensure student_face_images collection exists
+        print("  Connecting to Milvus...")
+        self.milvus_collection = self._init_milvus()
+
         print(f"\n✓ Initialization complete!")
         print(f"  Current enrollments: {len(self.db)}")
         print()
     
+    # ── Milvus helpers ────────────────────────────────────────────────────────
+
+    def _init_milvus(self):
+        """
+        Connect to Milvus and return the student_face_images Collection.
+        Returns None if Milvus is unavailable (graceful degradation).
+        """
+        if not _MILVUS_AVAILABLE:
+            print("  ⚠️  pymilvus not installed — Milvus storage disabled")
+            return None
+
+        try:
+            host = os.getenv("MILVUS_HOST", "localhost")
+            port = os.getenv("MILVUS_PORT", "19530")
+            uri  = os.getenv("URI")  # Zilliz Cloud / remote URI (optional)
+
+            if not connections.has_connection("default"):
+                if uri:
+                    connections.connect(alias="default", uri=uri)
+                else:
+                    connections.connect(alias="default", host=host, port=port)
+
+            collection_name = "student_face_images"
+
+            if utility.has_collection(collection_name):
+                col = Collection(collection_name)
+                col.load()
+                print(f"  ✅ Milvus: loaded existing '{collection_name}'")
+                return col
+
+            # Create collection (mirrors FaceRecognitionPipeline schema)
+            fields = [
+                FieldSchema(name="id",         dtype=DataType.INT64,         is_primary=True, auto_id=True),
+                FieldSchema(name="image_path", dtype=DataType.VARCHAR,       max_length=512),
+                FieldSchema(name="embedding",  dtype=DataType.FLOAT_VECTOR,  dim=512),
+            ]
+            schema = CollectionSchema(fields, description="Student face recognition embeddings")
+            col = Collection(collection_name, schema)
+            col.create_index(
+                field_name="embedding",
+                index_params={"index_type": "IVF_FLAT", "metric_type": "COSINE", "params": {"nlist": 128}},
+            )
+            col.load()
+            print(f"  ✅ Milvus: created '{collection_name}'")
+            return col
+
+        except Exception as exc:
+            print(f"  ⚠️  Milvus unavailable ({exc}) — saving to JSON only")
+            return None
+
+    def _insert_to_milvus(self, student_id: str, embeddings: list):
+        """
+        Insert all angle embeddings for a student into the Milvus collection.
+        Each angle becomes one row tagged '<student_id>_angle<i>'.
+        """
+        if self.milvus_collection is None:
+            return
+
+        try:
+            rows = [
+                {
+                    "image_path": f"{student_id}_angle{i}",
+                    "embedding":  emb.tolist() if hasattr(emb, "tolist") else list(emb),
+                }
+                for i, emb in enumerate(embeddings)
+            ]
+            result = self.milvus_collection.insert(rows)
+            self.milvus_collection.flush()
+            print(f"  ✅ Milvus: inserted {len(rows)} vectors  (ids={result.primary_keys})")
+        except Exception as exc:
+            print(f"  ⚠️  Milvus insert failed: {exc}")
+
+    # ── Webcam capture ────────────────────────────────────────────────────────
+
     def capture_angle(self, cap, angle_name: str, angle_instruction: str):
         """
         Capture face from a specific angle.
@@ -180,8 +267,8 @@ class EnrollmentDemo:
         # Define angles to capture
         angles = [
             ("straight", "Look straight at the camera"),
-            ("left", "Turn your head LEFT (your left)"),
-            ("right", "Turn your head RIGHT (your right)"),
+            ("left", "Turn your head LEFT (your right)"),
+            ("right", "Turn your head RIGHT (your left)"),
             ("up", "Tilt your head UP (look at ceiling)"),
             ("down", "Tilt your head DOWN (look at floor)")
         ]
@@ -239,37 +326,58 @@ class EnrollmentDemo:
                 print("❌ Enrollment cancelled")
                 return
         
-        student_name = input("Enter Student Name: ").strip()
-        if not student_name:
+        student_fullname_thai = input("Enter Student Thai Full Name: ").strip()
+        if not student_fullname_thai:
+            print("❌ Student name cannot be empty")
+            return
+        student_fullname_eng = input("Enter Student English Full Name: ").strip()
+        if not student_fullname_eng:
+            print("❌ Student name cannot be empty")
+            return
+
+        student_nickname_thai = input("Enter Student Thai Nickname: ").strip()
+        if not student_nickname_thai:
+            print("❌ Student name cannot be empty")
+            return
+        student_nickname_eng = input("Enter Student English Nickname: ").strip()
+        if not student_nickname_eng:
             print("❌ Student name cannot be empty")
             return
         
         # Optional metadata
-        grade = input("Enter Grade (optional): ").strip()
-        class_name = input("Enter Class (optional): ").strip()
+        gen = input("Enter RAI Gen(optional): ").strip()
+        section = input("Enter Section (optional): ").strip()
         
         metadata = {}
-        if grade:
-            metadata['grade'] = grade
-        if class_name:
-            metadata['class'] = class_name
+        if gen:
+            metadata['RAI Gen'] = gen
+        if section:
+            metadata['Section'] = section
         
         # Save to database
         print("\n💾 Saving enrollment...")
         success = self.db.enroll_student(
             student_id=student_id,
-            name=student_name,
+            fullname_thai=student_fullname_thai,
+            fullname_eng=student_fullname_eng,
+            nickname_thai=student_nickname_thai,
+            nickname_eng=student_nickname_eng,  
             embeddings=embeddings,
             metadata=metadata
         )
         
         if success:
+            # Also insert into Milvus
+            print("  Inserting embeddings into Milvus...")
+            self._insert_to_milvus(student_id, embeddings)
+
             print("\n" + "=" * 60)
             print("✅ ENROLLMENT SUCCESSFUL!")
             print("=" * 60)
             print(f"Student ID: {student_id}")
-            print(f"Name: {student_name}")
+            print(f"Name: {student_fullname_thai}")
             print(f"Embeddings captured: {len(embeddings)}")
+            print(f"Saved to: registration.json + Milvus 'student_face_images'")
             print(f"Total enrolled students: {len(self.db)}")
             print("=" * 60)
         else:

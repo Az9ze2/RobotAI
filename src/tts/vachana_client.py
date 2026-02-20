@@ -10,8 +10,8 @@ from typing import Dict, Optional, Tuple
 from loguru import logger
 import numpy as np
 
-# Add VachanaTTS to path
-VACHANA_PATH = Path("C:/Users/Win 10 Pro/Desktop/VachanaTTS")
+# Add VachanaTTS to path — resolve relative to this file so it works on any machine
+VACHANA_PATH = Path(__file__).resolve().parent.parent.parent / "VachanaTTS"
 sys.path.insert(0, str(VACHANA_PATH))
 
 try:

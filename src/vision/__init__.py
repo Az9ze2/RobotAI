@@ -10,25 +10,55 @@ This module provides:
 """
 
 from .detector import SCRFDDetector
-from .detector_pytorch import SCRFDPyTorchDetector
 from .detector_factory import create_scrfd_detector
 from .tracker import ByteTracker
 from .head_pose import HeadPoseEstimator
 from .recognition_trigger import RecognitionTrigger
 from .recognizer import FaceRecognizer
-from .student_db import StudentDatabase
-from .enrollment import EnrollmentManager
-from .pipeline import FaceRecognitionPipeline
+
+try:
+    from .detector_pytorch import SCRFDPyTorchDetector
+    _pytorch_available = True
+except ImportError:
+    SCRFDPyTorchDetector = None
+    _pytorch_available = False
+
+try:
+    from .student_db import StudentDatabase
+    _student_db_available = True
+except ImportError:
+    StudentDatabase = None
+    _student_db_available = False
+
+try:
+    from .enrollment import EnrollmentManager
+    _enrollment_available = True
+except ImportError:
+    EnrollmentManager = None
+    _enrollment_available = False
+
+try:
+    from .pipeline import FaceRecognitionPipeline
+    _pipeline_available = True
+except ImportError:
+    FaceRecognitionPipeline = None
+    _pipeline_available = False
 
 __all__ = [
     "SCRFDDetector",
-    "SCRFDPyTorchDetector",
     "create_scrfd_detector",
     "ByteTracker",
     "HeadPoseEstimator",
     "RecognitionTrigger",
     "FaceRecognizer",
-    "StudentDatabase",
-    "EnrollmentManager",
-    "FaceRecognitionPipeline",
 ]
+if _pytorch_available:
+    __all__.append("SCRFDPyTorchDetector")
+if _student_db_available:
+    __all__.append("StudentDatabase")
+if _enrollment_available:
+    __all__.append("EnrollmentManager")
+if _pipeline_available:
+    __all__.append("FaceRecognitionPipeline")
+
+
