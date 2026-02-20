@@ -133,22 +133,56 @@ git clone https://github.com/yourusername/RobotAI.git
 cd RobotAI
 
 # 2. Install dependencies
-pip install torch  # Install PyTorch first
+pip install torch==2.9.1+cu128 --index-url https://download.pytorch.org/whl/cu128
+pip install nemo-toolkit[asr]==2.4.0
+sudo apt-get install ffmpeg
 pip install -r requirements.txt
-pip install git+https://github.com/vistec-AI/VachanaTTS.git
+pip install git+https://github.com/VYNCX/VachanaTTS.git
 
 # 3. Download models (see Models section)
 # Place models in models/ directory
 
 # 4. Install and start Ollama
 # Download from https://ollama.ai
+sudo snap install ollama
 ollama pull qwen2.5:7b-instruct
 ollama serve
 
-# 5. Enroll a student
+# 5. Install Docker and milvus
+# Add Docker's official GPG key:
+sudo apt update
+sudo apt install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt update
+
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Download the compose file
+wget https://github.com/milvus-io/milvus/releases/download/v2.4.0/milvus-standalone-docker-compose.yml -O docker-compose.yml
+
+# Create a folder and move into it
+mkdir -p ~/milvus && mv docker-compose.yml ~/milvus/
+cd ~/milvus
+
+# Start Milvus
+sudo docker compose up -d
+
+# 6. Enroll a student
 python demos/demo_enrollment.py
 
-# 6. Run the end-to-end demo
+# 7. Run the end-to-end demo
 python demos/demo_end_to_end.py
 ```
 
@@ -189,13 +223,19 @@ source venv/bin/activate
 
 ```bash
 # Install PyTorch first (important!)
-pip install torch
+pip install torch torchvision
 
 # Install all other dependencies
 pip install -r requirements.txt
 
+# install the PortAudio system library
+sudo apt-get install libportaudio2 portaudio19-dev
+
 # Install VachanaTTS
-pip install git+https://github.com/vistec-AI/VachanaTTS.git
+git clone https://github.com/VYNCX/VachanaTTS.git
+cd VachanaTTS
+pip install -r requirements.txt
+cd ..
 ```
 
 ### Step 4: Download Models
@@ -203,13 +243,17 @@ pip install git+https://github.com/vistec-AI/VachanaTTS.git
 #### Face Detection (SCRFD 10G)
 ```bash
 # Download from InsightFace model zoo
+# this git repo have model already
 # Place in: models/buffalo_l/det_10g.onnx
+pip install -U insightface
 ```
 
 #### Face Recognition (ArcFace R100)
 ```bash
 # Download from InsightFace model zoo
+# this git repo have model already
 # Place in: models/arcface_r100_v1_fp16.onnx
+pip install -U insightface
 ```
 
 #### LLM (Qwen 2.5)
