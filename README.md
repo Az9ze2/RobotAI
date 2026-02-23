@@ -195,7 +195,7 @@ chmod +x setup.sh
 # Download from InsightFace model zoo
 # this git repo have model already
 # Place in: models/buffalo_l/det_10g.onnx
-pip install -U insightface
+
 ```
 
 #### Face Recognition (ArcFace R100)
