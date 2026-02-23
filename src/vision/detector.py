@@ -61,40 +61,50 @@ class SCRFDDetector:
         logger.info(f"Input size: {input_size}, Confidence threshold: {confidence_threshold}")
     
     def _create_session(self) -> ort.InferenceSession:
-        """Create ONNX Runtime session with appropriate execution providers."""
-        providers = []
-        
-        if self.device == "cuda":
-            if self.use_tensorrt:
-                # TensorRT execution provider for maximum performance
-                providers.append((
-                    "TensorrtExecutionProvider",
-                    {
-                        "trt_fp16_enable": True,  # Enable FP16 for Tensor Cores
-                        "trt_engine_cache_enable": True,
-                        "trt_engine_cache_path": "./models/trt_cache",
-                    }
-                ))
-            
-            # CUDA execution provider as fallback
-            providers.append("CUDAExecutionProvider")
-        
-        # CPU as final fallback
-        providers.append("CPUExecutionProvider")
-        
+        """Create ONNX Runtime session with tiered fallback: TensorRT → CUDA → CPU."""
         session_options = ort.SessionOptions()
         session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        
-        try:
-            session = ort.InferenceSession(
+
+        def _try_create(providers):
+            return ort.InferenceSession(
                 self.model_path,
                 sess_options=session_options,
-                providers=providers
+                providers=providers,
             )
+
+        if self.device == "cuda":
+            # Tier 1: TensorRT + CUDA + CPU
+            if self.use_tensorrt:
+                trt_opts = {
+                    "trt_fp16_enable": True,
+                    "trt_engine_cache_enable": True,
+                    "trt_engine_cache_path": "./models/trt_cache",
+                    "trt_max_workspace_size": 512 * 1024 * 1024,  # 512 MB — prevent OOM on Jetson
+                }
+                try:
+                    session = _try_create([("TensorrtExecutionProvider", trt_opts),
+                                           "CUDAExecutionProvider", "CPUExecutionProvider"])
+                    logger.info(f"ONNX Runtime providers: {session.get_providers()}")
+                    return session
+                except Exception as e:
+                    logger.warning(f"TensorRT init failed ({type(e).__name__}: {e}), retrying with CUDA only...")
+
+            # Tier 2: CUDA + CPU
+            try:
+                session = _try_create(["CUDAExecutionProvider", "CPUExecutionProvider"])
+                logger.info(f"ONNX Runtime providers: {session.get_providers()}")
+                return session
+            except Exception as e:
+                logger.warning(f"CUDA init failed ({type(e).__name__}: {e}), falling back to CPU...")
+
+        # Tier 3: CPU only
+        try:
+            session = _try_create(["CPUExecutionProvider"])
+            logger.warning("Running on CPU — GPU unavailable (check memory / CUDA context).")
             logger.info(f"ONNX Runtime providers: {session.get_providers()}")
             return session
         except Exception as e:
-            logger.error(f"Failed to create ONNX Runtime session: {e}")
+            logger.error(f"Failed to create ONNX Runtime session even on CPU: {e}")
             raise
     
     def preprocess(self, image: np.ndarray) -> Tuple[np.ndarray, float]:

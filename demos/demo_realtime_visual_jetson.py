@@ -34,6 +34,23 @@ from vision.recognition_trigger import RecognitionTrigger
 from vision.recognizer import FaceRecognizer
 from vision.database import EnrollmentDatabase
 
+# ---------- Jetson GPU stats via sysfs ----------
+_GPU_DEVFREQ = "/sys/class/devfreq/17000000.gpu"
+
+def _read_gpu_stats() -> dict:
+    """Read GPU freq & utilisation from Jetson sysfs. Returns defaults on failure."""
+    stats = {"cur_mhz": 0, "max_mhz": 0, "util_pct": 0.0, "provider": "CPU"}
+    try:
+        with open(f"{_GPU_DEVFREQ}/cur_freq") as f:
+            stats["cur_mhz"] = int(f.read().strip()) // 1_000_000
+        with open(f"{_GPU_DEVFREQ}/max_freq") as f:
+            stats["max_mhz"] = int(f.read().strip()) // 1_000_000
+        if stats["max_mhz"] > 0:
+            stats["util_pct"] = stats["cur_mhz"] / stats["max_mhz"] * 100.0
+    except Exception:
+        pass
+    return stats
+
 class VisualPipelineDemo:
     """Real-time pipeline demo with visual feedback."""
     
@@ -48,7 +65,7 @@ class VisualPipelineDemo:
             confidence_threshold=0.5,
             nms_threshold=0.4,
             input_size=(640, 640),
-            device="cpu"
+            device="cuda"
         )
         
         # Initialize tracker
@@ -80,7 +97,7 @@ class VisualPipelineDemo:
         try:
             self.recognizer = FaceRecognizer(
                 model_path="models/arcface_r100_v1_fp16.onnx",
-                device="cpu"
+                device="cuda"
             )
             self.recognizer_available = True
         except Exception as e:
@@ -93,6 +110,12 @@ class VisualPipelineDemo:
         self.last_time = datetime.now()
         self.last_resource_log_time = datetime.now()
         self._process = psutil.Process()
+        # Cache the active ONNX provider name for display
+        try:
+            prov = self.detector.session.get_providers()[0]
+            self._gpu_provider = prov.replace("ExecutionProvider", "")
+        except Exception:
+            self._gpu_provider = "unknown"
         
         # Track confirmed recognitions (persists after first trigger)
         self.confirmed_tracks = set()  # Set of track IDs that have been confirmed
@@ -164,23 +187,26 @@ class VisualPipelineDemo:
         cv2.putText(frame, f"Active Tracks: {len(tracks)}", (10, y), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
-        # CPU / RAM stats
+        # CPU / RAM / GPU stats
         n_cores  = psutil.cpu_count() or 1
         sys_cpu  = psutil.cpu_percent(interval=None)
-        # Normalize proc_cpu to 0-100% (psutil returns sum-across-all-cores)
         proc_cpu_norm = min(self._process.cpu_percent(interval=None) / n_cores, 100.0)
         mem       = psutil.virtual_memory()
         swap      = psutil.swap_memory()
         ram_used  = mem.used  / (1024 ** 3)
         ram_total = mem.total / (1024 ** 3)
         swap_used = swap.used / (1024 ** 3)
+        gpu       = _read_gpu_stats()
 
         # Log to terminal once per second
         now = datetime.now()
         if (now - self.last_resource_log_time).total_seconds() >= 1.0:
-            logger.info(f"SYS_CPU={sys_cpu:>4.1f}% | PROC_CPU={proc_cpu_norm:>4.1f}% | "
-                        f"RAM={ram_used:>4.1f}/{ram_total:.1f}GB ({mem.percent}%) | "
-                        f"SWAP={swap_used:>4.1f}GB ({swap.percent}%)")
+            logger.info(
+                f"SYS_CPU={sys_cpu:>4.1f}% | PROC_CPU={proc_cpu_norm:>4.1f}% | "
+                f"RAM={ram_used:>4.1f}/{ram_total:.1f}GB ({mem.percent}%) | "
+                f"SWAP={swap_used:>4.1f}GB ({swap.percent}%) | "
+                f"GPU={gpu['cur_mhz']}MHz/{gpu['max_mhz']}MHz ({gpu['util_pct']:.0f}%) [{self._gpu_provider}]"
+            )
             self.last_resource_log_time = now
 
         y += 40
@@ -193,6 +219,13 @@ class VisualPipelineDemo:
         y += 22
         cv2.putText(frame, f"CPU proc: {proc_cpu_norm:.0f}% rel", (10, y),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, cpu_color, 1)
+        y += 22
+        gpu_color = (0, 255, 0) if gpu['util_pct'] < 70 else (0, 165, 255) if gpu['util_pct'] < 90 else (0, 0, 255)
+        cv2.putText(frame, f"GPU freq: {gpu['cur_mhz']}/{gpu['max_mhz']}MHz ({gpu['util_pct']:.0f}%)", (10, y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, gpu_color, 1)
+        y += 22
+        cv2.putText(frame, f"GPU mode: {self._gpu_provider}", (10, y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, gpu_color, 1)
         y += 22
         ram_color = (0, 255, 0) if mem.percent < 70 else (0, 165, 255) if mem.percent < 90 else (0, 0, 255)
         # Note: Jetson unified mem — GPU carve-out not visible here
