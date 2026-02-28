@@ -11,6 +11,7 @@ echo "[1/6] Installing system dependencies..."
 sudo apt-get update
 sudo apt-get install -y \
     ffmpeg \
+    zstd \
     libportaudio2 \
     portaudio19-dev \
     ca-certificates \
@@ -19,39 +20,50 @@ sudo apt-get install -y \
 # 2. Python dependencies
 echo ""
 echo "[2/6] Installing Python dependencies..."
-pip install torch==2.9.1+cu128 --index-url https://download.pytorch.org/whl/cu128
+pip install torch==2.4.1+cu121 --index-url https://download.pytorch.org/whl/cu121
 pip install nemo-toolkit[asr]==2.4.0
 pip install -r requirements.txt
 # Stage 5: VachanaTTS (no setup.py — install dependencies manually)
 echo "Installing VachanaTTS..."
-VACHANA_DIR="/home/ancfhtna/capstone/RobotAI/vachanatts"
-git clone https://github.com/VYNCX/VachanaTTS.git "$VACHANA_DIR"
+VACHANA_DIR="/home/sarucha3/walle_capstone/RobotAI/vachanatts"
+if [ ! -d "$VACHANA_DIR" ]; then
+    git clone https://github.com/VYNCX/VachanaTTS.git "$VACHANA_DIR"
+fi
 cd "$VACHANA_DIR"
 # Install any requirements if present
 if [ -f requirements.txt ]; then
     pip install -r requirements.txt
 fi
-# Copy module directly to site-packages
-pip show torch | grep Location | awk '{print $2}' | xargs -I{} cp -r . {}/vachanatts 2>/dev/null || \
-    cp -r . $(python -c "import site; print(site.getsitepackages()[0])")/vachanatts
+# Copy module directly to site-packages (exclude .git)
+SITE_DIR=$(pip show torch 2>/dev/null | grep Location | awk '{print $2}')
+SITE_DIR=${SITE_DIR:-$(python -c "import site; print(site.getsitepackages()[0])")}
+mkdir -p "$SITE_DIR/vachanatts"
+rsync -a --exclude='.git' . "$SITE_DIR/vachanatts/"
 cd ..
 echo "VachanaTTS installed."
 
 # 3. Ollama
 echo ""
 echo "[3/6] Installing Ollama and pulling model..."
-sudo snap install ollama
-ollama pull qwen2.5:7b-instruct
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Start server first
 ollama serve &
+sleep 3 
+ollama pull qwen2.5:7b-instruct
 echo "Ollama started in background."
 
 # 4. Docker
 echo ""
 echo "[4/6] Installing Docker..."
+# Add Docker's official GPG key:
+sudo apt update
+sudo apt install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
+# Add the repository to Apt sources:
 sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
@@ -60,7 +72,7 @@ Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
-sudo apt-get update
+sudo apt update
 sudo apt-get install -y \
     docker-ce \
     docker-ce-cli \
