@@ -75,7 +75,7 @@ Frame timestamps from the live pipeline run on 2026-02-24:
 | **CPU Load (system)** | 95 – 99% | **16 – 27%** | **~75% lower** |
 | **CPU Load (process)** | 85 – 92% | **9 – 12%** | **~82% lower** |
 | **Thermal headroom** | Minimal (fully saturated) | Good (CPU stays cool) |  |
-| **Startup time** | ~2 s | ~5 min (first run, TRT build) / ~5 s (cached) |  |
+| **Startup time** | ~2 s | ~60–120 s (Run 1, TRT build) / ~2–5 s (Run 2+, cached) | See §6 below |
 
 ---
 
@@ -116,3 +116,21 @@ delivers meaningful real-world gains on the Jetson Orin:
 | **Model Quantisation (INT8)** | +1.5–2× | Quantise SCRFD and ArcFace offline; slight accuracy trade-off |
 | **Increase GPU Carve-out** | Enables TensorRT | Edit `mem=3500M` → `mem=2500M` in boot config to give GPU more unified memory |
 | **Frame skipping** | Lower latency feel | Run detection every 2nd frame; tracker holds state in between |
+
+---
+
+## 7. Startup Timing Investigation (2026-03-03)
+
+A cross-platform startup timing test was conducted to identify the root cause of slow startup across hardware. See the dedicated report:
+[`docs/2026-03-03_STARTUP_TIMING_INVESTIGATION.md`](./2026-03-03_STARTUP_TIMING_INVESTIGATION.md)
+
+**Key findings:**
+- On **Windows PC** (test machine): camera `VideoCapture(0)` at 1280×720 via USB/MSMF took **~21 s per run** (93–97% of total startup). TRT/CUDA were non-functional on this PC due to missing DLLs, so models loaded via CPU in < 1 s.
+- On **Jetson Orin**: camera (CSI) opens in < 1 s. The bottleneck is TRT engine compilation on **Run 1 only** (~60–120 s). Run 2+ loads from `models/trt_cache/` in ~2–5 s.
+- Both `demo_realtime_visual.py` (normal) and `demo_realtime_visual_jetson.py` showed **identical startup times** on the same hardware — the Jetson-specific additions (`psutil`, GPU stats) add negligible overhead.
+
+**Fix applied (2026-03-03 — `demo_realtime_visual_jetson.py`):**
+- `VideoCapture(0)` is now opened in a **background thread** at the very start of `__init__()`, running in parallel with model loading.
+- Camera starts at **640×480** for a fast initial handshake, then ramps to **1280×720** after 3 warmup frames.
+- On Jetson Run 1: camera finishes during TRT build → zero wait when `run()` starts.
+- On Jetson Run 2+: camera finishes during TRT cache load → still zero wait.

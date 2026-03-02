@@ -1,0 +1,42 @@
+
+
+=== RUN 1  [2026-03-03T05:51:47.859853] ===
+Platform: win32  |  ORT providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+TRT cache files before: 0  after: 0
+    1.085s  (  4.7%)  Detector (SCRFD + TensorRT)
+    0.486s  (  2.1%)  Face Recognizer (ArcFace + TensorRT)
+    0.000s  (  0.0%)  ByteTracker
+    0.000s  (  0.0%)  HeadPoseEstimator
+    0.000s  (  0.0%)  RecognitionTrigger
+    0.001s  (  0.0%)  EnrollmentDatabase
+   21.352s  ( 93.1%)  Camera open + first frame read
+  ──────────────────────────────────────────────────
+  22.925s  TOTAL
+
+
+=== RUN 2  [2026-03-03T05:52:37.082261] ===
+Platform: win32  |  ORT providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+TRT cache files before: 0  after: 0
+    0.072s  (  0.3%)  Detector (SCRFD + TensorRT)
+    0.474s  (  2.2%)  Face Recognizer (ArcFace + TensorRT)
+    0.001s  (  0.0%)  ByteTracker
+    0.000s  (  0.0%)  HeadPoseEstimator
+    0.000s  (  0.0%)  RecognitionTrigger
+    0.002s  (  0.0%)  EnrollmentDatabase
+   21.466s  ( 97.5%)  Camera open + first frame read
+  ──────────────────────────────────────────────────
+  22.016s  TOTAL
+
+
+=== RUN 3  [2026-03-03T05:53:12.598736] ===
+Platform: win32  |  ORT providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+TRT cache files before: 0  after: 0
+    0.071s  (  0.3%)  Detector (SCRFD + TensorRT)
+    0.421s  (  1.9%)  Face Recognizer (ArcFace + TensorRT)
+    0.000s  (  0.0%)  ByteTracker
+    0.000s  (  0.0%)  HeadPoseEstimator
+    0.000s  (  0.0%)  RecognitionTrigger
+    0.002s  (  0.0%)  EnrollmentDatabase
+   21.123s  ( 97.7%)  Camera open + first frame read
+  ──────────────────────────────────────────────────
+  21.618s  TOTAL
