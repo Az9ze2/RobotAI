@@ -62,16 +62,8 @@ class VisualPipelineDemo:
         """Initialize all pipeline components."""
         print("Initializing Vision Pipeline Demo...")
 
-        # ── Fix 1: open camera in a background thread right away ──────────
-        # Camera USB/CSI handshake can take 10-20s; running it in parallel
-        # with model loading makes the wait nearly free.
-        # ── Fix 3: start at 640×480 for a faster initial handshake, then
-        # switch to 1280×720 once the camera is already alive.
-        self._cap: cv2.VideoCapture | None = None
-        self._cap_error: str | None = None
-        self._cam_thread = threading.Thread(target=self._open_camera_bg, daemon=True)
-        self._cam_thread.start()
-        print("  Camera: opening in background...")
+        # ── Fix 1: Removed background thread as RealSense initializes very fast ──
+        print("  Camera: RealSense will initialize in run()...")
 
         # Initialize detector
         print("  Loading face detector...")
@@ -141,29 +133,9 @@ class VisualPipelineDemo:
         self.db = EnrollmentDatabase("data/enrollments.json")
         print(f"    Loaded {len(self.db)} enrolled students")
         
-        print("OK Pipeline initialized successfully!\n")
+        print("✓ Pipeline initialized successfully!\n")
 
-    # ── camera background helper ───────────────────────────────────────────
-    def _open_camera_bg(self):
-        """Open the camera at low resolution first (Fix 3) for a fast handshake.
-        Called in a daemon thread so it runs parallel to model loading (Fix 1)."""
-        try:
-            cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            if not cap.isOpened():
-                self._cap_error = "cv2.VideoCapture(0) returned not-opened"
-                return
-            # Low-res warmup — faster USB/CSI negotiation
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            # Flush a couple of frames to make sure the sensor is running
-            for _ in range(3):
-                cap.read()
-            # Now ramp up to full HD
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self._cap = cap
-        except Exception as exc:
-            self._cap_error = str(exc)
+
     
     def draw_info_panel(self, frame, detections, tracks):
         """Draw information panel on the left side."""
@@ -414,12 +386,13 @@ class VisualPipelineDemo:
             if not best_det or best_iou < 0.3:  # Require at least 30% IOU
                 continue
             
-            det = best_det
+            det = best_det if isinstance(best_det, dict) else {}
             
             # Step 3: Estimate head pose
-            if det.get("landmarks"):
-                pose = self.head_pose.estimate_simple(det["landmarks"])
-                track.head_pose = pose
+            landmarks = det.get("landmarks")
+            if landmarks is not None:
+                pose = self.head_pose.estimate_simple(landmarks)
+                setattr(track, 'head_pose', pose)
             
             # Step 4: Check recognition trigger
             track_head_pose = getattr(track, 'head_pose', {}) or {}
@@ -480,30 +453,50 @@ class VisualPipelineDemo:
     
     def run(self):
         """Run the demo."""
+        print("Starting Intel RealSense camera...")
         print("Press 'q' to quit, 's' to save screenshot, 'r' to reset\n")
+        
+        import pyrealsense2 as rs
+        
+        pipeline = rs.pipeline()
+        config = rs.config()
 
-        # ── Fix 1: wait for the background camera thread to finish ─────────
-        if self._cam_thread.is_alive():
-            print("  Waiting for camera to finish opening...")
-            self._cam_thread.join(timeout=30)
-
-        if self._cap_error:
-            print(f"FAILED to open webcam: {self._cap_error}")
+        pipeline_wrapper = rs.pipeline_wrapper(pipeline)
+        try:
+            pipeline_profile = config.resolve(pipeline_wrapper)
+            device = pipeline_profile.get_device()
+        except Exception as e:
+            print(f"❌ Failed to find RealSense camera: {e}")
             return
 
-        cap = self._cap
-        if cap is None or not cap.isOpened():
-            print("FAILED to open webcam!")
+        # Enable color stream
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        
+        try:
+            # Start streaming
+            pipeline.start(config)
+        except Exception as e:
+            print(f"❌ Failed to start RealSense pipeline: {e}")
             return
 
-        print("  Camera ready (1280×720).")
+        print("  Camera ready (640×480).")
         
         cv2.namedWindow("Vision Pipeline Demo", cv2.WINDOW_NORMAL)
         
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                print("Failed to read frame")
+            try:
+                # Wait for a coherent pair of frames: depth and color
+                frames = pipeline.wait_for_frames()
+                color_frame = frames.get_color_frame()
+                
+                if not color_frame:
+                    print("Failed to grab color frame")
+                    continue
+                
+                # Convert images to numpy arrays
+                frame = np.asanyarray(color_frame.get_data())
+            except Exception as e:
+                print(f"Failed to read frame: {e}")
                 break
             
             # Update FPS
@@ -532,14 +525,14 @@ class VisualPipelineDemo:
                 print("\nQuitting...")
                 break
             elif key == ord('s'):
-                filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                filename = f"screenshot_realsense_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
                 cv2.imwrite(filename, frame)
                 print(f"  Screenshot saved: {filename}")
             elif key == ord('r'):
                 print("  Resetting tracker...")
                 self.tracker.reset()
         
-        cap.release()
+        pipeline.stop()
         cv2.destroyAllWindows()
         print("Demo ended.")
 
@@ -557,7 +550,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\nInterrupted by user")
     except Exception as e:
-        print(f"\nFAILED Error: {e}")
+        print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return 1
