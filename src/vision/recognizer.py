@@ -27,8 +27,8 @@ class FaceRecognizer:
         self,
         model_path: str,
         embedding_dim: int = 512,
-        use_tensorrt: bool = True,
-        device: str = "cuda"
+        use_tensorrt: bool = False,
+        device: str = "cpu"
     ):
         """
         Initialize face recognizer.
@@ -89,7 +89,14 @@ class FaceRecognizer:
 
             # Tier 2: CUDA + CPU
             try:
-                session = _try_create(["CUDAExecutionProvider", "CPUExecutionProvider"])
+                # Add memory limit options for CUDA to prevent OOM
+                cuda_opts = {
+                    "device_memory_limit": 512 * 1024 * 1024,  # 512 MB
+                    "arena_extend_strategy": "kSameAsRequested",
+                    "cudnn_conv_algo_search": "HEURISTIC",
+                    "do_copy_in_default_stream": True,
+                }
+                session = _try_create([("CUDAExecutionProvider", cuda_opts), "CPUExecutionProvider"])
                 logger.info(f"ONNX Runtime providers: {session.get_providers()}")
                 return session
             except Exception as e:

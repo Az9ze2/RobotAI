@@ -125,6 +125,10 @@ class VisualPipelineDemo:
             self._gpu_provider = prov.replace("ExecutionProvider", "")
         except Exception:
             self._gpu_provider = "unknown"
+            
+        # Frame skipping configuration
+        self.skip_frames = 10
+        self.cv_trackers = []
         
         # Track confirmed recognitions (persists after first trigger)
         self.confirmed_tracks: set = set()  # Set of track IDs that have been confirmed
@@ -349,8 +353,49 @@ class VisualPipelineDemo:
     
     def process_frame(self, frame):
         """Process a single frame through the pipeline."""
-        # Step 1: Detect faces
-        detections = self.detector.detect(frame)
+        # Step 1: Detect faces with SCRFD (with frame skipping)
+        if self.frame_count % self.skip_frames == 0:
+            detections = self.detector.detect(frame)
+            
+            # Re-initialize OpenCV trackers for the intermediate frames
+            self.cv_trackers = []
+            for det in detections:
+                try:
+                    if hasattr(cv2, 'legacy') and hasattr(cv2.legacy, 'TrackerCSRT_create'):
+                        tracker = cv2.legacy.TrackerCSRT_create()
+                    elif hasattr(cv2, 'TrackerCSRT_create'):
+                        tracker = cv2.TrackerCSRT_create()
+                    else:
+                        tracker = cv2.TrackerMIL_create()
+                except Exception:
+                    tracker = cv2.TrackerMIL_create()
+                
+                x1, y1, x2, y2 = det["bbox"]
+                w, h = max(1, int(x2 - x1)), max(1, int(y2 - y1))
+                tracker.init(frame, (int(x1), int(y1), w, h))
+                self.cv_trackers.append({
+                    "tracker": tracker,
+                    "confidence": det["confidence"],
+                    "landmarks": det.get("landmarks", [])
+                })
+        else:
+            # Intermediate frames: update OpenCV trackers
+            detections = []
+            valid_trackers = []
+            for t_info in self.cv_trackers:
+                success, bbox = t_info["tracker"].update(frame)
+                if success:
+                    x, y, w, h = [int(v) for v in bbox]
+                    detections.append({
+                        "bbox": [x, y, x + w, y + h],
+                        "confidence": t_info["confidence"],
+                        "landmarks": t_info["landmarks"]
+                    })
+                    valid_trackers.append(t_info)
+                else:
+                    # Keep failed trackers to avoid losing tracking entirely just because of one bad frame
+                    pass
+            self.cv_trackers = valid_trackers
         
         # Step 2: Track faces
         tracks = self.tracker.update(detections)
