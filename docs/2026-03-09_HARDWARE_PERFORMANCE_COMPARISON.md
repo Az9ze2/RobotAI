@@ -1,5 +1,12 @@
 # Hardware Performance Comparison: Vision Pipeline
 
+## Test Environment (Current System)
+**Note:** This data was collected to establish a baseline for future hardware tests (e.g., when deploying back to the Jetson).
+- **OS**: Windows 11 Notebook
+- **CPU**: AMD Ryzen 7 5800H with Radeon Graphics
+- **GPU**: NVIDIA GeForce RTX 3050 Laptop GPU / AMD Radeon Graphics
+- **RAM**: 16 GB 
+
 This report analyzes the performance differences observed when transitioning the RobotAI Vision Pipeline from the original development hardware (NVIDIA Jetson / Raspberry Pi 5) to the current Windows Notebook environment, specifically focusing on camera initialization issues.
 
 ## 1. Hardware & OS Transition Impact
@@ -103,3 +110,21 @@ To determine if the RealSense camera provides a performance boost during actual 
 - **Intel RealSense D415 (pyrealsense2):** `9.4 FPS`
 
 **Takeaway**: Once the cameras are initialized, they perform virtually identically when driving the vision pipeline logic. The primary bottleneck is the CPU processing the heavy ONNX models (SCRFD detector and Object tracker), which uniformly clamps the maximum pipeline throughput to ~9 FPS regardless of whether the camera is capable of delivering 30 FPS. The true advantage of the RealSense camera lies in its instant initialization speed (0.13s) and its hardware-synchronized depth map streams (should they be needed for future pipeline iterations).
+
+## Part 3: Algorithmic Architecture (PyTorch MTCNN+FaceNet vs ONNX SCRFD+ArcFace)
+
+Upon user recommendation, a secondary PyTorch-based pipeline using **RetinaFace/MTCNN** (Detector) + **FaceNet** (Recognizer) was implemented and benchmarked (`demo_realtime_visual_facenet.py`) against the standard built-in camera to determine if the 9 FPS hardware-bottleneck could be lifted by changing algorithmic models.
+
+**Benchmark Results:**
+- PyTorch (MTCNN + InceptionResnetV1): **~16.6 FPS** (100 frame average)
+- ONNX (SCRFD + ArcFace): **~9.3 FPS** (100 frame average)
+
+**Performance Analysis:**
+The PyTorch `facenet-pytorch` implementation successfully boosted base CPU inference from 9.3 FPS to **16.6 FPS**. This confirms that the PyTorch MTCNN CPU-compile is far more optimized for standard Windows processors than the generic `onnxruntime` CPU provider. 
+
+However, despite nearly doubling performance, **it still falls drastically short of the 30FPS RealSense camera target.**
+
+### Conclusion & Path Forward
+1. **Camera Choice**: The Intel RealSense camera provides excellent standalone initialization speeds, but its higher potential framerate (30FPS+) goes completely unused natively by the current deep-learning architecture.
+2. **Model Choice**: The `facenet-pytorch` stack performs significantly better on the notebook CPU (~16 FPS) compared to the ONNX stack (~9 FPS) but still acts as a hard limit on real-time video flow.
+3. **Recommendation**: To truly reach 30+ FPS, we cannot process the Face Detector neural network loop on every single frame. It is recommended to build a **Frame-Skipping Object Tracker** pipeline: the heavy detector (like MTCNN) only runs once every 10 frames to detect new faces, and an ultra-fast OpenCV mathematical tracker (like CSRT) interpolates the bounding-boxes for the 9 intermediate frames.
