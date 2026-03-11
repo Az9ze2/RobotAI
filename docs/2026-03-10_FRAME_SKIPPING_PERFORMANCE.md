@@ -38,6 +38,7 @@ Both scripts were executed on the exact same hardware reading the exact same Rea
 | **Camera Benchmark** (Pure Capture, no AI) | ~29.8 | Baseline | ~10% |
 | **v1.0 / v1.1** (ONNX SCRFD Every Frame, CPU) | **~2.9 FPS** | 0.56x | ~88% |
 | **v1.2** (ONNX SCRFD Every 10th Frame + CSRT, CPU) | **14.5 FPS** | **2.84x** | ~35% |
+| **v1.2** (ONNX SCRFD Every 10th Frame + CSRT, CUDA no TRT) | **14.7 FPS** | **2.88x** | ~67% |
 | **v2.0** (MTCNN on Every Frame, CPU) | **5.1 FPS** | 1.0x | 85% - 94% |
 | **v2.1** (MTCNN Every 10th Frame + CSRT, CPU) | **14.2 FPS** | 2.78x | 35% - 40% |
 
