@@ -1,0 +1,73 @@
+[Unit]
+Description=RobotAI Jetson Vision Pipeline
+# Wait for the network stack so ZMQ bind succeeds on the correct interface
+After=network.target
+# Also wait for USB to settle so RealSense is enumerated before we start
+After=systemd-udev-settle.service
+
+[Service]
+# ── User context ────────────────────────────────────────────────────────────
+# Change "jetson" to the actual login user that owns the conda/venv environment
+User=jetson
+WorkingDirectory=/home/jetson/RobotAI
+
+# ── Environment ─────────────────────────────────────────────────────────────
+# Activate the correct Python environment.
+# Option A – conda:
+#   Environment=PATH=/home/jetson/miniconda3/envs/robotai/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Option B – venv (uncomment and set the right path):
+#   Environment=PATH=/home/jetson/RobotAI/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Allow CUDA / GPU device access
+Environment=DISPLAY=
+
+# ── Command ─────────────────────────────────────────────────────────────────
+# Headless + LAN streaming. Adjust --stream-host to your Pi5 static IP.
+ExecStart=/usr/bin/env python3 demos/demo_realtime_visual_jetson_realsense_skip.py \
+    --no-display \
+    --stream-enabled \
+    --stream-host 0.0.0.0 \
+    --stream-port 5555 \
+    --skip-frames 10 \
+    --log-level INFO
+
+# ── Restart policy ──────────────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5s
+
+# ── Logging ─────────────────────────────────────────────────────────────────
+# Logs are captured by journald automatically.
+# View with:  journalctl -u robotai-vision -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robotai-vision
+
+[Install]
+WantedBy=multi-user.target
+
+# ============================================================================
+# INSTALLATION INSTRUCTIONS
+# ============================================================================
+#
+# 1. Copy this file to systemd:
+#    sudo cp scripts/robotai-vision.service /etc/systemd/system/
+#
+# 2. Reload systemd daemon:
+#    sudo systemctl daemon-reload
+#
+# 3. Enable (auto-start on boot):
+#    sudo systemctl enable robotai-vision
+#
+# 4. Start now:
+#    sudo systemctl start robotai-vision
+#
+# 5. Check status / logs:
+#    sudo systemctl status robotai-vision
+#    journalctl -u robotai-vision -f
+#
+# 6. Stop:
+#    sudo systemctl stop robotai-vision
+#
+# 7. Disable auto-start:
+#    sudo systemctl disable robotai-vision
+# ============================================================================

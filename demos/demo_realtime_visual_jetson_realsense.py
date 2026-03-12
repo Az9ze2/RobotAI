@@ -73,7 +73,7 @@ class VisualPipelineDemo:
             nms_threshold=0.4,
             input_size=(640, 640),
             device="cuda",
-            use_tensorrt=False
+            use_tensorrt=True
         )
         
         # Initialize tracker
@@ -106,7 +106,7 @@ class VisualPipelineDemo:
             self.recognizer = FaceRecognizer(
                 model_path="models/arcface_r100_v1_fp16.onnx",
                 device="cuda",
-                use_tensorrt=False
+                use_tensorrt=True
             )
             self.recognizer_available = True
         except Exception as e:

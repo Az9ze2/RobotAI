@@ -77,7 +77,7 @@ class FaceRecognizer:
                     "trt_fp16_enable": True,
                     "trt_engine_cache_enable": True,
                     "trt_engine_cache_path": "./models/trt_cache",
-                    "trt_max_workspace_size": 512 * 1024 * 1024,  # 512 MB — prevent OOM on Jetson
+                    "trt_max_workspace_size": 256 * 1024 * 1024,  # 256 MB — stay within Jetson RAM
                 }
                 try:
                     session = _try_create([("TensorrtExecutionProvider", trt_opts),

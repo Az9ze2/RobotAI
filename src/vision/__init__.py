@@ -7,6 +7,7 @@ This module provides:
 - Head pose estimation from facial landmarks
 - Face recognition using ArcFace
 - Student identification with Milvus vector database
+- ZMQ LAN streaming (Jetson → Pi5)
 """
 
 from .detector import SCRFDDetector
@@ -44,6 +45,14 @@ except ImportError:
     FaceRecognitionPipeline = None
     _pipeline_available = False
 
+try:
+    from .stream_sender import StreamSender, build_result
+    _streaming_available = True
+except ImportError:
+    StreamSender = None
+    build_result = None
+    _streaming_available = False
+
 __all__ = [
     "SCRFDDetector",
     "create_scrfd_detector",
@@ -60,5 +69,7 @@ if _enrollment_available:
     __all__.append("EnrollmentManager")
 if _pipeline_available:
     __all__.append("FaceRecognitionPipeline")
+if _streaming_available:
+    __all__.extend(["StreamSender", "build_result"])
 
 

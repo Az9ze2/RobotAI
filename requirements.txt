@@ -25,6 +25,9 @@ opencv-python>=4.8.0
 numpy>=1.24.0
 scipy>=1.11.0
 
+# ZMQ – LAN streaming from Jetson to Pi5 (works on JetPack 6 and Pi OS Bookworm)
+pyzmq>=25.0
+
 # ============================================================================
 # SPEECH-TO-TEXT (Typhoon ASR)
 # ============================================================================
