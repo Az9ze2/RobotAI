@@ -10,12 +10,14 @@ This document is the **complete reference** for setting up the Raspberry Pi 5 as
 ┌────────────────────────────┐       LAN cable       ┌────────────────────┐
 │  Jetson Orin Nano          │ ──────────────────→   │  Network Switch    │
 │  RealSense D435i attached  │                        └────────┬───────────┘
-│  IP: 192.168.1.10          │                                 │ LAN cable
-│  ZMQ PUB :5555             │                        ┌────────┴───────────┐
-└────────────────────────────┘                        │  Raspberry Pi 5    │
-                                                      │  IP: 192.168.1.100 │
-                                                      │  ZMQ SUB :5555     │
-                                                      └────────────────────┘
+│  IP: 192.168.1.10          │                                 │
+│  ZMQ PUB :5555             │              ┌──────────────────┴──────────────────┐
+└────────────────────────────┘              │ LAN cables                          │
+                                   ┌────────┴───────────┐                ┌────────┴───────────┐
+                                   │  Raspberry Pi 5 #1 │                │  Raspberry Pi 5 #2 │
+                                   │  IP: 192.168.1.20  │                │  IP: 192.168.1.30  │
+                                   │  ZMQ SUB :5555     │                │  ZMQ SUB :5555     │
+                                   └────────────────────┘                └────────────────────┘
 ```
 
 The Jetson publishes a **ZMQ PUB** multipart message on every processed frame. The Pi5 subscribes to the `"vision"` topic and decodes each message.
@@ -78,22 +80,45 @@ sudo nmcli con up "Wired connection 1"
 ip addr show
 ```
 
-### On the Pi5
+### On the Pi5 (#1 - Device 20)
 
 ```bash
+# NMCLI (Standard method)
 sudo nmcli con mod "Wired connection 1" \
-    ipv4.addresses 192.168.1.100/24 \
+    ipv4.addresses 192.168.1.20/24 \
     ipv4.method manual
 sudo nmcli con up "Wired connection 1"
+
+# Manual Workaround (If NMCLI fails/times out)
+sudo ip addr add 192.168.1.20/24 dev eth0
+```
+
+### On the Pi5 (#2 - Device 30)
+
+```bash
+# NMCLI (Standard method)
+sudo nmcli con mod "Wired connection 1" \
+    ipv4.addresses 192.168.1.30/24 \
+    ipv4.method manual
+sudo nmcli con up "Wired connection 1"
+
+# Manual Workaround (If NMCLI fails/times out)
+sudo ip addr add 192.168.1.30/24 dev eth0
 ```
 
 Ping test:
 ```bash
-# From Pi5
+# From Pi5 #1
 ping 192.168.1.10
+ping 192.168.1.30
+
+# From Pi5 #2
+ping 192.168.1.10
+ping 192.168.1.20
 
 # From Jetson
-ping 192.168.1.100
+ping 192.168.1.20
+ping 192.168.1.30
 ```
 
 ---
